@@ -31,9 +31,13 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400, data }) => {
 
   // 获取K线数据（外部 data 有值时不请求接口）
   const fetchKlineData = useCallback(async (periodValue = period) => {
-    if (Array.isArray(data) && data.length > 0) return;
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('📊 KLineChart: Using external data, skipping API request');
+      return;
+    }
     if (!stockCode || stockCode === '--') return;
 
+    console.log('📊 KLineChart: Fetching data from API for', stockCode);
     setLoading(true);
     setError(null);
 
@@ -48,12 +52,13 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400, data }) => {
           displayData: recentData,
           total: response.klines.length
         });
+        console.log('✅ KLineChart: Got API data:', response.klines.length, 'items');
       } else {
         setKlineData(null);
         setError('暂无K线数据');
       }
     } catch (err) {
-      console.error('K线数据获取失败:', err);
+      console.error('❌ K线数据获取失败:', err);
       setError('K线数据获取失败');
       setKlineData(null);
     } finally {
@@ -64,6 +69,7 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400, data }) => {
   // 优先使用外部传入的 10 日数据
   useEffect(() => {
     if (Array.isArray(data) && data.length > 0) {
+      console.log('📊 Using external data for KLineChart:', data);
       const normalized = normalizeExternalData(data);
       const recentData = normalized.slice(-displayCount);
       setKlineData({

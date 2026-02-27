@@ -50,6 +50,11 @@ const useStockDecision = (symbol) => {
     fetchDecision();
   }, [fetchDecision]);
 
+  // 调试日志：输出接收到的数据
+  useEffect(() => {
+    console.log('🔍 Received Data:', data);
+  }, [data]);
+
   return {
     data,
     isLoading,
@@ -217,6 +222,18 @@ const DiagnosisPage = ({
     </section>
   );
 
+  // 渲染加载状态
+  const renderLoading = () => (
+    isPageLoading ? (
+      <section className="loading-section">
+        <div className="loading-container rounded-xl bg-white/5 p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <div className="text-white/70">正在加载数据...</div>
+        </div>
+      </section>
+    ) : null
+  );
+
   // 渲染错误提示区域
   const renderError = () => (
     pageError ? (
@@ -240,16 +257,19 @@ const DiagnosisPage = ({
         {/* 2) 控制面板区域 */}
         {stockList?.length > 0 && renderControlPanel()}
 
-        {/* 3) 决策卡片区域 */}
+        {/* 3) 加载状态显示 */}
+        {renderLoading()}
+
+        {/* 4) 决策卡片区域 */}
         {renderDecisionCards()}
 
-        {/* 4) 10 日 K 线区域 */}
+        {/* 5) 10 日 K 线区域 */}
         {renderChart()}
 
-        {/* 5) AI 深度分析区域 */}
+        {/* 6) AI 深度分析区域 */}
         {renderAIAnalysis()}
 
-        {/* 6) 统一错误提示 */}
+        {/* 7) 统一错误提示 */}
         {renderError()}
       </div>
 

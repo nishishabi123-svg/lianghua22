@@ -1,10 +1,13 @@
 import axios from 'axios';
 
-const BASE_URL = '/api';
+// 优先使用环境变量，fallback 到北京后端地址
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://82.157.126.222:9000';
+
+console.log('🔗 API Base URL:', BASE_URL);
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 15000, // 增加超时时间
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,10 +16,11 @@ const api = axios.create({
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    console.log('API Request:', config.method?.toUpperCase(), config.url);
+    console.log('🚀 API Request:', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {
+    console.error('❌ Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -24,10 +28,21 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   (response) => {
+    console.log('✅ API Response:', response.config.url, response.status);
     return response.data;
   },
   (error) => {
-    console.error('API Error:', error.response?.data || error.message);
+    console.error('❌ API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.response?.data || error.message
+    });
+    
+    // 如果是网络错误或 404，给出更友好的错误信息
+    if (error.code === 'NETWORK_ERROR' || error.response?.status === 404) {
+      error.message = `无法连接到服务器 ${BASE_URL}`;
+    }
+    
     return Promise.reject(error);
   }
 );
