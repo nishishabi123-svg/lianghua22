@@ -1,302 +1,168 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import MarketStatusBar from '../components/MarketStatusBar';
-import DecisionCard from '../components/DecisionCard';
-import CyberCard from '../components/CyberCard';
-import IdleMarketDisplay from '../components/IdleMarketDisplay';
-import DynamicSidebar from '../components/DynamicSidebar';
+import React, { useState, useMemo } from 'react';
+// 请确保这些路径正确，如果没有对应文件，请先创建或使用占位符
+import SideNav from '../components/SideNav'; 
+import MarketTicker from '../components/MarketTicker'; // 需确保此组件支持自定义宽度
+import CyberSearch from '../components/CyberSearch';
 import KLineChart from '../components/KLineChart';
-import CyberChart from '../components/CyberChart';
-import SearchHero from '../components/SearchHero';
-import AIAccordion from '../components/AIAccordion';
-import api from '../api';
-import { validateStockData } from '../api/stock';
+import AIMultiDimensionAnalysis from '../components/AIMultiDimensionAnalysis';
 
-const useStockDecision = (symbol) => {
-  const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+// --- 模拟数据 (实际应从 API 获取) ---
+const HOT_SECTORS_UP = [
+  { name: '半导体', change: '+1.85%', leader: '中芯国际' },
+  { name: '人工智能', change: '+1.42%', leader: '科大讯飞' },
+  { name: '新能源', change: '+0.98%', leader: '宁德时代' },
+  { name: '医药生物', change: '+0.75%', leader: '恒瑞医药' },
+];
 
-  const fetchDecision = useCallback(() => {
-    if (!symbol || symbol === '--') {
-      setData(null);
-      return;
-    }
+const HOT_SECTORS_DOWN = [
+  { name: '房地产', change: '-1.20%', leader: '万科 A' },
+  { name: '银行', change: '-0.85%', leader: '招商银行' },
+  { name: '钢铁', change: '-0.60%', leader: '宝钢股份' },
+  { name: '煤炭', change: '-0.45%', leader: '中国神华' },
+];
 
-    setIsLoading(true);
-    setError(null);
-
-    api
-      .get(`/stock_decision?symbol=${symbol}`)
-      .then((response) => {
-        const { valid, errors } = validateStockData(response);
-
-        if (!valid) {
-          setData(null);
-          setError(`数据结构校验失败：${errors.join('；')}`);
-          return;
-        }
-
-        setData(response);
-      })
-      .catch((err) => {
-        console.error('获取决策数据失败:', err);
-        setData(null);
-        setError(err.message || '获取决策数据失败');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, [symbol]);
-
-  useEffect(() => {
-    fetchDecision();
-  }, [fetchDecision]);
-
-  useEffect(() => {
-    console.log('🔍 Received Data:', data);
-  }, [data]);
-
-  return {
-    data,
-    isLoading,
-    error,
-    refresh: fetchDecision
-  };
-};
-
-const DiagnosisPage = ({
-  stockData,
-  previousStockData,
-  loading,
-  error,
-  marketStatus,
-  lastUpdate,
-  autoRefreshEnabled,
-  refreshInterval,
-  onToggleAutoRefresh,
-  onManualRefresh,
-  onIntervalChange,
-  onMarketStatusChange,
-  onSearch,
-  searchLoading,
-  currentStockCode,
-  stockList,
-  isVip
-}) => {
-  const primaryStock = useMemo(() => stockData || stockList?.[0] || null, [stockData, stockList]);
-
-  const sidebarStockCode = useMemo(
-    () => currentStockCode || primaryStock?.code,
-    [currentStockCode, primaryStock]
-  );
-
-  const isIdle = useMemo(() => !stockList?.length && !loading, [stockList, loading]);
-
-  const decisionSymbol = primaryStock?.code || currentStockCode;
-  const {
-    data: decisionData,
-    isLoading: decisionLoading,
-    error: decisionError,
-    refresh: refreshDecision
-  } = useStockDecision(decisionSymbol);
-
-  const isPageLoading = loading || decisionLoading;
-  const pageError = error || decisionError;
-
-  const chartData = useMemo(
-    () => decisionData?.simple_chart?.last_10_days || [],
-    [decisionData]
-  );
-
-  const hotSectors = useMemo(() => ([
-    { name: '半导体', change: 1.85, leader: '北方华创' },
-    { name: '新能源', change: 0.5, leader: '宁德时代' },
-    { name: 'AI 服务器', change: 2.12, leader: '浪潮信息' },
-    { name: '医药创新', change: -0.34, leader: '恒瑞医药' },
-    { name: '数字金融', change: 0.78, leader: '东方财富' }
-  ]), []);
-
-  const handleRetry = useCallback(() => {
-    onManualRefresh?.();
-    refreshDecision();
-  }, [onManualRefresh, refreshDecision]);
-
-  const renderMarketStatus = () => (
-    <section className="market-status-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
-      <MarketStatusBar
-        isMarketOpen={marketStatus.isMarketOpen}
-        lastUpdate={lastUpdate}
-        onStatusChange={onMarketStatusChange}
-      />
-    </section>
-  );
-
-  const renderControlPanel = () => (
-    <section className="control-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
-      <div className="control-panel flex flex-wrap items-center gap-4">
-        <button
-          onClick={onToggleAutoRefresh}
-          className={`cyber-button ${autoRefreshEnabled ? 'active' : ''}`}
-        >
-          {autoRefreshEnabled ? '暂停刷新' : '开始刷新'}
-        </button>
-
-        <button
-          onClick={onManualRefresh}
-          className="cyber-button"
-          disabled={isPageLoading}
-        >
-          {isPageLoading ? '刷新中...' : '立即刷新'}
-        </button>
-
-        <div className="interval-selector flex items-center gap-3 text-sm">
-          <label className="text-white/70">刷新间隔</label>
-          <select
-            value={refreshInterval}
-            onChange={(e) => onIntervalChange(Number(e.target.value))}
-            className="cyber-input"
-            disabled={!marketStatus.isMarketOpen}
-          >
-            <option value={3000}>3秒</option>
-            <option value={4000}>4秒</option>
-            <option value={5000}>5秒</option>
-            <option value={10000}>10秒</option>
-          </select>
-        </div>
-
-        {autoRefreshEnabled && (
-          <div className="refresh-indicator flex items-center gap-2 text-sm text-white/70">
-            <div className="refresh-dot"></div>
-            <span>{marketStatus.isMarketOpen ? '实时刷新中' : '智能刷新中'}</span>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-
-  const renderDecisionCards = () => (
-    <section className="decision-section space-y-4">
-      {isIdle ? (
-        <IdleMarketDisplay />
-      ) : stockList?.length > 0 ? (
-        <div className="decision-grid">
-          {stockList.map((item) => (
-            <DecisionCard key={item.code} stockData={item} isVip={isVip} />
-          ))}
-        </div>
-      ) : (
-        <CyberCard>
-          <div className="empty-state-text">请输入股票代码查看决策卡片</div>
-        </CyberCard>
-      )}
-    </section>
-  );
-
-  const renderCharts = () => (
-    <div className="chart-stack space-y-4">
-      {primaryStock ? (
-        <CyberChart data={primaryStock} title="今日分时走势" height={260} />
-      ) : (
-        <CyberCard>
-          <div className="empty-state-text">请选择股票以查看分时走势</div>
-        </CyberCard>
-      )}
-      <section className="chart-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
-        {decisionSymbol ? (
-          <KLineChart
-            stockCode={decisionSymbol}
-            title="10 日精简 K 线"
-            height={300}
-            data={chartData}
-          />
-        ) : (
-          <CyberCard>
-            <div className="empty-state-text">请选择股票以查看 10 日 K 线</div>
-          </CyberCard>
-        )}
-      </section>
-    </div>
-  );
-
-  const renderHotSectors = () => (
-    <section className="hot-sectors rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
-      <div className="section-title">今日热门板块</div>
-      <div className="hot-sector-list">
-        {hotSectors.map((sector) => (
-          <div key={sector.name} className="hot-sector-item">
-            <div>
-              <div className="hot-sector-name">{sector.name}</div>
-              <div className="hot-sector-leader">龙头：{sector.leader}</div>
-            </div>
-            <div className={`hot-sector-change ${sector.change >= 0 ? 'positive' : 'negative'}`}>
-              {sector.change >= 0 ? '+' : ''}{sector.change.toFixed(2)}%
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-
-  const renderMarketSplit = () => (
-    <section className="market-split grid gap-6 lg:grid-cols-[2.2fr_1fr]">
-      {renderCharts()}
-      {renderHotSectors()}
-    </section>
-  );
-
-  const renderAIAnalysis = () => (
-    <section className="ai-section">
-      {primaryStock ? (
-        <AIAccordion stockCode={primaryStock.code} />
-      ) : (
-        <CyberCard>
-          <div className="empty-state-text">请选择股票查看 AI 决策分析</div>
-        </CyberCard>
-      )}
-    </section>
-  );
-
-  const renderLoading = () => (
-    isPageLoading ? (
-      <section className="loading-section">
-        <div className="loading-container rounded-xl bg-white/5 p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <div className="text-white/70">正在加载数据...</div>
-        </div>
-      </section>
-    ) : null
-  );
-
-  const renderError = () => (
-    pageError ? (
-      <section className="error-section">
-        <div className="error-container rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-100">
-          <div className="error-message">错误: {pageError}</div>
-          <button onClick={handleRetry} className="cyber-button mt-3">
-            重试
-          </button>
-        </div>
-      </section>
-    ) : null
-  );
+const DiagnosisPage = () => {
+  const [searchCode, setSearchCode] = useState('');
+  
+  // 模拟当前股票数据
+  const currentStock = { code: '600519', name: '贵州茅台', price: 1780.50, change: '+1.2%' };
 
   return (
-    <div className="flex gap-6">
-      <div className="page-container diagnosis-page flex-1 space-y-6">
-        <SearchHero onSearch={onSearch} loading={searchLoading || isPageLoading} />
-        {renderMarketStatus()}
-        {stockList?.length > 0 && renderControlPanel()}
-        {renderLoading()}
-        {renderMarketSplit()}
-        {renderDecisionCards()}
-        {renderAIAnalysis()}
-        {renderError()}
-      </div>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      
+      {/* 1. 左侧侧边栏 (固定宽度) */}
+      <aside className="w-64 bg-white border-r border-sky-100 shadow-sm z-20 flex-shrink-0">
+        <SideNav /> 
+      </aside>
 
-      <DynamicSidebar
-        stockCode={sidebarStockCode}
-        isVisible={!!sidebarStockCode && sidebarStockCode !== '--'}
-      />
+      {/* 主体内容区 */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* 2. 顶部导航栏 (天蓝渐变) */}
+        <header className="h-20 bg-gradient-to-r from-sky-500 to-blue-600 shadow-md flex items-center px-6 flex-shrink-0">
+          {/* 左侧：Logo 区域 (预留空间给侧边栏对齐) */}
+          <div className="w-64 flex-shrink-0 flex flex-col justify-center">
+            <h1 className="text-xl font-bold text-white tracking-wide">牛消息 AI 系统</h1>
+            <p className="text-xs text-sky-100 opacity-90 mt-0.5">智能分析 · 辅助决策</p>
+          </div>
+
+          {/* 中间：大盘跑马灯 (占据剩余所有空间) */}
+          <div className="flex-1 mx-6 overflow-hidden">
+            <MarketTicker /> 
+            {/* 注意：请确保 MarketTicker 组件内部样式设置为 width: 100% */}
+          </div>
+
+          {/* 右侧：用户中心 */}
+          <div className="w-48 flex-shrink-0 flex justify-end">
+            <button className="px-5 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 rounded-lg text-white text-sm font-medium transition-all flex items-center gap-2">
+              <span>👤</span> 登录 / 个人中心
+            </button>
+          </div>
+        </header>
+
+        {/* 滚动内容区 */}
+        <main className="flex-1 overflow-y-auto p-6 scroll-smooth">
+          <div className="max-w-7xl mx-auto space-y-6">
+            
+            {/* 3. 核心搜索区 (C 位) */}
+            <section className="bg-white rounded-2xl shadow-sm border border-sky-100 p-8 flex flex-col items-center justify-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-blue-500"></div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">输入代码，立即获取 AI 决策</h2>
+              <div className="w-full max-w-2xl flex gap-3">
+                <input 
+                  type="text" 
+                  placeholder="请输入股票代码或名称 (如：600519)" 
+                  className="flex-1 px-6 py-4 rounded-xl border-2 border-sky-100 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 outline-none text-lg transition-all"
+                  value={searchCode}
+                  onChange={(e) => setSearchCode(e.target.value)}
+                />
+                <button className="px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-lg">
+                  立即诊断
+                </button>
+              </div>
+              <p className="mt-3 text-sm text-gray-400">支持沪深 A 股、港股、美股 · 毫秒级响应</p>
+            </section>
+
+            {/* 4. 市场与 K 线分屏区 (7:3) */}
+            <section className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-auto lg:h-[500px]">
+              
+              {/* 左侧：K 线图 (70%) */}
+              <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-sky-100 flex flex-col overflow-hidden">
+                <div className="p-5 border-b border-sky-50 flex justify-between items-center bg-slate-50/50">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">{currentStock.name} <span className="text-gray-500 text-base font-normal">({currentStock.code})</span></h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-2xl font-bold text-gray-900">¥{currentStock.price}</span>
+                      <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-sm font-bold">{currentStock.change}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {['分时', '10 日', '日 K', '周 K'].map((tab) => (
+                      <button key={tab} className="px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-sky-50 text-gray-600 hover:text-sky-600 transition-colors">
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-1 p-4 bg-white">
+                  {/* 这里放入你的 K 线组件 */}
+                  <KLineChart symbol={currentStock.code} height="100%" />
+                  {/* 如果没有组件，显示占位符 */}
+                  {/* <div className="w-full h-full flex items-center justify-center text-gray-400 bg-slate-50 rounded-lg">K 线图表区域</div> */}
+                </div>
+              </div>
+
+              {/* 右侧：热门板块 (30%) - 正方形卡片两排 */}
+              <div className="lg:col-span-3 flex flex-col gap-6 overflow-y-auto no-scrollbar">
+                
+                {/* 上排：涨幅榜 */}
+                <div className="flex-1 bg-white rounded-2xl shadow-sm border border-sky-100 p-4 flex flex-col">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-4 bg-red-500 rounded-full"></span> 涨幅榜
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 content-start">
+                    {HOT_SECTORS_UP.map((sector, idx) => (
+                      <div key={idx} className="bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl p-3 cursor-pointer transition-all group">
+                        <div className="text-xs text-gray-500 mb-1">{sector.name}</div>
+                        <div className="text-lg font-bold text-red-600 mb-1">{sector.change}</div>
+                        <div className="text-xs text-gray-400 truncate group-hover:text-red-500">龙头：{sector.leader}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 下排：跌幅榜 */}
+                <div className="flex-1 bg-white rounded-2xl shadow-sm border border-sky-100 p-4 flex flex-col">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-4 bg-green-500 rounded-full"></span> 跌幅榜
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3 content-start">
+                    {HOT_SECTORS_DOWN.map((sector, idx) => (
+                      <div key={idx} className="bg-green-50 hover:bg-green-100 border border-green-100 rounded-xl p-3 cursor-pointer transition-all group">
+                        <div className="text-xs text-gray-500 mb-1">{sector.name}</div>
+                        <div className="text-lg font-bold text-green-600 mb-1">{sector.change}</div>
+                        <div className="text-xs text-gray-400 truncate group-hover:text-green-500">龙头：{sector.leader}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </section>
+
+            {/* 5. AI 多维度分析区 (扑克牌布局) */}
+            <section>
+              <AIMultiDimensionAnalysis />
+            </section>
+
+            {/* 底部 */}
+            <footer className="text-center text-xs text-gray-400 py-6 border-t border-sky-100 mt-8">
+              风险提示：AI 分析仅供参考，不构成投资建议 · 市场有风险，投资需谨慎
+            </footer>
+
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
