@@ -7,11 +7,11 @@ import api from './index';
 
 export const marketApi = {
   /**
-   * 获取大盘脉搏数据
-   * @returns {Promise} 包含主要指数和成交额的完整数据
+   * 获取大盘脉搏数据(已修复：使用 market_index 接口)
+   * @returns {Promise} 包含纳斯达克、A50 等指数数据
    */
   getMarketPulse() {
-    return api.get('/market_pulse');
+    return api.get('/market_index');
   },
 
   /**
