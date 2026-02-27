@@ -1,7 +1,13 @@
 import axios from 'axios';
 
 // 优先使用环境变量，fallback 到北京后端地址
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://82.157.126.222:9000';
+// 自动处理 /api 前缀
+let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://82.157.126.222:9000';
+// 如果环境变量或默认值里没有 /api，就自动加上
+if (!baseUrl.endsWith('/api')) {
+  baseUrl += '/api';
+}
+const BASE_URL = baseUrl;
 
 console.log('🔗 API Base URL:', BASE_URL);
 
