@@ -221,21 +221,14 @@ function App() {
           <SideNav />
           <div className="app-main">
             <header className="top-bar">
-              <div className="top-bar__title">
-                <div className="brand-title">牛消息AI，助力决策</div>
-                <div className="brand-subtitle">结论先行 · 细节折叠 · 专业金融风格</div>
+              <div className="top-bar__brand">
+                <div className="brand-title">AI 决策终端</div>
+                <div className="brand-subtitle">保姆级决策</div>
               </div>
               <div className="top-bar__ticker">
                 <MarketTicker />
               </div>
               <div className="top-bar__right">
-                <div className="top-bar__search">
-                  <CyberSearch
-                    onSearch={handleSearch}
-                    loading={multiLoading || loading}
-                    variant="compact"
-                  />
-                </div>
                 <div className="data-status">
                   <div className="status-dot online" title="数据连接正常"></div>
                 </div>
@@ -247,6 +240,7 @@ function App() {
                 </button>
               </div>
             </header>
+
 
             <main className="content-area">
               <Routes>
@@ -266,9 +260,12 @@ function App() {
                       onManualRefresh={handleManualRefresh}
                       onIntervalChange={handleIntervalChange}
                       onMarketStatusChange={handleMarketStatusChange}
+                      onSearch={handleSearch}
+                      searchLoading={multiLoading || loading}
                       currentStockCode={currentStockCode}
                       stockList={stockList}
                       isVip={isVip}
+
                     />
                   )}
                 />

@@ -679,10 +679,14 @@ body {
   display: flex;
   align-items: center;
   gap: 24px;
-  transition: transform 0.5s ease;
   min-width: 100%;
-  justify-content: center;
+  will-change: transform;
 }
+
+.ticker-track--marquee {
+  animation: ticker-marquee 18s linear infinite;
+}
+
 
 .ticker-item {
   display: flex;
@@ -756,6 +760,16 @@ body {
   40% { opacity: 1; }
 }
 
+@keyframes ticker-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+
 /* 错误状态 */
 .ticker-error {
   display: flex;
@@ -796,11 +810,11 @@ body {
 
 /* 个人中心按钮 */
 .user-center-button {
-  padding: 6px 12px;
-  background: var(--primary-color);
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
+  padding: 6px 14px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #e2e8f0;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -808,8 +822,9 @@ body {
 }
 
 .user-center-button:hover {
-  background: #2470db;
+  background: rgba(56, 189, 248, 0.35);
 }
+
 
 /* 决策卡片 */
 .decision-section {

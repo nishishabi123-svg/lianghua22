@@ -1,22 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import MarketStatusBar from '../components/MarketStatusBar';
-import AIDepthAnalysis from '../components/AIDepthAnalysis';
 import DecisionCard from '../components/DecisionCard';
 import CyberCard from '../components/CyberCard';
 import IdleMarketDisplay from '../components/IdleMarketDisplay';
 import DynamicSidebar from '../components/DynamicSidebar';
 import KLineChart from '../components/KLineChart';
+import CyberChart from '../components/CyberChart';
+import SearchHero from '../components/SearchHero';
+import AIAccordion from '../components/AIAccordion';
 import api from '../api';
 import { validateStockData } from '../api/stock';
 
-// 自定义 Hook：获取 /api/stock_decision 的决策数据
 const useStockDecision = (symbol) => {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // 拉取决策数据，并用 stockSchema 做结构校验
-  const fetchDecision = useCallback(async () => {
+  const fetchDecision = useCallback(() => {
     if (!symbol || symbol === '--') {
       setData(null);
       return;
@@ -25,32 +25,33 @@ const useStockDecision = (symbol) => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await api.get(`/stock_decision?symbol=${symbol}`);
-      const { valid, errors } = validateStockData(response);
+    api
+      .get(`/stock_decision?symbol=${symbol}`)
+      .then((response) => {
+        const { valid, errors } = validateStockData(response);
 
-      if (!valid) {
+        if (!valid) {
+          setData(null);
+          setError(`数据结构校验失败：${errors.join('；')}`);
+          return;
+        }
+
+        setData(response);
+      })
+      .catch((err) => {
+        console.error('获取决策数据失败:', err);
         setData(null);
-        setError(`数据结构校验失败：${errors.join('；')}`);
-        return;
-      }
-
-      setData(response);
-    } catch (err) {
-      console.error('获取决策数据失败:', err);
-      setData(null);
-      setError(err.message || '获取决策数据失败');
-    } finally {
-      setIsLoading(false);
-    }
+        setError(err.message || '获取决策数据失败');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, [symbol]);
 
-  // 监听股票代码变化，自动刷新
   useEffect(() => {
     fetchDecision();
   }, [fetchDecision]);
 
-  // 调试日志：输出接收到的数据
   useEffect(() => {
     console.log('🔍 Received Data:', data);
   }, [data]);
@@ -76,23 +77,21 @@ const DiagnosisPage = ({
   onManualRefresh,
   onIntervalChange,
   onMarketStatusChange,
+  onSearch,
+  searchLoading,
   currentStockCode,
   stockList,
   isVip
 }) => {
-  // 计算主展示股票，优先使用实时行情，其次用列表首条
   const primaryStock = useMemo(() => stockData || stockList?.[0] || null, [stockData, stockList]);
 
-  // 右侧动态栏优先使用当前股票代码
   const sidebarStockCode = useMemo(
     () => currentStockCode || primaryStock?.code,
     [currentStockCode, primaryStock]
   );
 
-  // 空闲状态：没有股票列表且不在加载
   const isIdle = useMemo(() => !stockList?.length && !loading, [stockList, loading]);
 
-  // 使用决策数据（来自 /api/stock_decision）
   const decisionSymbol = primaryStock?.code || currentStockCode;
   const {
     data: decisionData,
@@ -101,23 +100,27 @@ const DiagnosisPage = ({
     refresh: refreshDecision
   } = useStockDecision(decisionSymbol);
 
-  // 合并加载与错误状态，统一展示
   const isPageLoading = loading || decisionLoading;
   const pageError = error || decisionError;
 
-  // 图表数据仅使用 10 日收盘价，避免在渲染中重复计算
   const chartData = useMemo(
     () => decisionData?.simple_chart?.last_10_days || [],
     [decisionData]
   );
 
-  // 统一的重试逻辑：刷新行情 + 刷新决策
+  const hotSectors = useMemo(() => ([
+    { name: '半导体', change: 1.85, leader: '北方华创' },
+    { name: '新能源', change: 0.5, leader: '宁德时代' },
+    { name: 'AI 服务器', change: 2.12, leader: '浪潮信息' },
+    { name: '医药创新', change: -0.34, leader: '恒瑞医药' },
+    { name: '数字金融', change: 0.78, leader: '东方财富' }
+  ]), []);
+
   const handleRetry = useCallback(() => {
     onManualRefresh?.();
     refreshDecision();
   }, [onManualRefresh, refreshDecision]);
 
-  // 渲染市场状态区域
   const renderMarketStatus = () => (
     <section className="market-status-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
       <MarketStatusBar
@@ -128,7 +131,6 @@ const DiagnosisPage = ({
     </section>
   );
 
-  // 渲染控制区域
   const renderControlPanel = () => (
     <section className="control-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
       <div className="control-panel flex flex-wrap items-center gap-4">
@@ -172,7 +174,6 @@ const DiagnosisPage = ({
     </section>
   );
 
-  // 渲染决策卡片区
   const renderDecisionCards = () => (
     <section className="decision-section space-y-4">
       {isIdle ? (
@@ -191,38 +192,70 @@ const DiagnosisPage = ({
     </section>
   );
 
-  // 渲染 10 日 K 线图
-  const renderChart = () => (
-    <section className="chart-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
-      {decisionSymbol ? (
-        <KLineChart
-          stockCode={decisionSymbol}
-          title="10 日精简 K 线"
-          height={360}
-          data={chartData}
-        />
+  const renderCharts = () => (
+    <div className="chart-stack space-y-4">
+      {primaryStock ? (
+        <CyberChart data={primaryStock} title="今日分时走势" height={260} />
       ) : (
         <CyberCard>
-          <div className="empty-state-text">请选择股票以查看 10 日 K 线</div>
+          <div className="empty-state-text">请选择股票以查看分时走势</div>
         </CyberCard>
       )}
+      <section className="chart-section rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
+        {decisionSymbol ? (
+          <KLineChart
+            stockCode={decisionSymbol}
+            title="10 日精简 K 线"
+            height={300}
+            data={chartData}
+          />
+        ) : (
+          <CyberCard>
+            <div className="empty-state-text">请选择股票以查看 10 日 K 线</div>
+          </CyberCard>
+        )}
+      </section>
+    </div>
+  );
+
+  const renderHotSectors = () => (
+    <section className="hot-sectors rounded-xl bg-white/5 p-4 shadow-sm backdrop-blur">
+      <div className="section-title">今日热门板块</div>
+      <div className="hot-sector-list">
+        {hotSectors.map((sector) => (
+          <div key={sector.name} className="hot-sector-item">
+            <div>
+              <div className="hot-sector-name">{sector.name}</div>
+              <div className="hot-sector-leader">龙头：{sector.leader}</div>
+            </div>
+            <div className={`hot-sector-change ${sector.change >= 0 ? 'positive' : 'negative'}`}>
+              {sector.change >= 0 ? '+' : ''}{sector.change.toFixed(2)}%
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 
-  // 渲染 AI 深度分析区域
+  const renderMarketSplit = () => (
+    <section className="market-split grid gap-6 lg:grid-cols-[2.2fr_1fr]">
+      {renderCharts()}
+      {renderHotSectors()}
+    </section>
+  );
+
   const renderAIAnalysis = () => (
     <section className="ai-section">
       {primaryStock ? (
-        <AIDepthAnalysis stockCode={primaryStock.code} isVip={isVip} />
+        <AIAccordion stockCode={primaryStock.code} />
       ) : (
         <CyberCard>
-          <div className="empty-state-text">请选择股票查看 AI 深度分析</div>
+          <div className="empty-state-text">请选择股票查看 AI 决策分析</div>
         </CyberCard>
       )}
     </section>
   );
 
-  // 渲染加载状态
   const renderLoading = () => (
     isPageLoading ? (
       <section className="loading-section">
@@ -234,7 +267,6 @@ const DiagnosisPage = ({
     ) : null
   );
 
-  // 渲染错误提示区域
   const renderError = () => (
     pageError ? (
       <section className="error-section">
@@ -251,29 +283,16 @@ const DiagnosisPage = ({
   return (
     <div className="flex gap-6">
       <div className="page-container diagnosis-page flex-1 space-y-6">
-        {/* 1) 市场状态区域 */}
+        <SearchHero onSearch={onSearch} loading={searchLoading || isPageLoading} />
         {renderMarketStatus()}
-
-        {/* 2) 控制面板区域 */}
         {stockList?.length > 0 && renderControlPanel()}
-
-        {/* 3) 加载状态显示 */}
         {renderLoading()}
-
-        {/* 4) 决策卡片区域 */}
+        {renderMarketSplit()}
         {renderDecisionCards()}
-
-        {/* 5) 10 日 K 线区域 */}
-        {renderChart()}
-
-        {/* 6) AI 深度分析区域 */}
         {renderAIAnalysis()}
-
-        {/* 7) 统一错误提示 */}
         {renderError()}
       </div>
 
-      {/* 右侧动态栏 */}
       <DynamicSidebar
         stockCode={sidebarStockCode}
         isVisible={!!sidebarStockCode && sidebarStockCode !== '--'}
@@ -283,4 +302,3 @@ const DiagnosisPage = ({
 };
 
 export default DiagnosisPage;
-

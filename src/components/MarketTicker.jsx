@@ -1,73 +1,60 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { marketApi } from '../api/market';
+
+const fallbackIndices = [
+  { name: '上证', code: '000001', value: 3245.67, change: 0.82, trend: 'up' },
+  { name: '深证', code: '399001', value: 11234.56, change: -0.23, trend: 'down' },
+  { name: '创业板', code: '399006', value: 2234.78, change: 1.45, trend: 'up' },
+  { name: '纳指', code: 'IXIC', value: 17234.13, change: 0.56, trend: 'up' },
+  { name: 'A50', code: 'CN50', value: 13245.87, change: -0.41, trend: 'down' }
+];
 
 const MarketTicker = () => {
   const [marketData, setMarketData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
 
-  // 获取大盘脉搏数据
-  const fetchMarketPulse = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await marketApi.getMarketPulse();
-      
-      if (data && data.indices) {
-        setMarketData(data);
-      } else {
-        // 使用默认数据作为降级方案
-        setMarketData({
-          indices: [
-            { name: '上证指数', code: '000001', value: 3245.67, change: 0.82, trend: 'up' },
-            { name: '深证成指', code: '399001', value: 11234.56, change: -0.23, trend: 'down' },
-            { name: '创业板指', code: '399006', value: 2234.78, change: 1.45, trend: 'up' }
-          ],
-          turnover: '8500.6亿'
-        });
-      }
-    } catch (err) {
-      console.error('大盘数据获取失败:', err);
-      setError('数据加载失败');
-      
-      // 降级到mock数据
-      setMarketData({
-        indices: [
-          { name: '上证指数', code: '000001', value: 3245.67, change: 0.82, trend: 'up' },
-          { name: '深证成指', code: '399001', value: 11234.56, change: -0.23, trend: 'down' },
-          { name: '创业板指', code: '399006', value: 2234.78, change: 1.45, trend: 'up' }
-        ],
-        turnover: '8500.6亿'
+  const fetchMarketPulse = useCallback(() => {
+    setLoading(true);
+    setError(null);
+
+    marketApi
+      .getMarketPulse()
+      .then((data) => {
+        if (data && data.indices) {
+          setMarketData(data);
+        } else {
+          setMarketData({ indices: fallbackIndices });
+        }
+      })
+      .catch((err) => {
+        console.error('大盘数据获取失败:', err);
+        setError('数据加载失败');
+        setMarketData({ indices: fallbackIndices });
+      })
+      .finally(() => {
+        setLoading(false);
       });
-    } finally {
-      setLoading(false);
-    }
   }, []);
 
-  // 初始数据加载
   useEffect(() => {
     fetchMarketPulse();
   }, [fetchMarketPulse]);
 
-  // 定时刷新数据（每30秒）
   useEffect(() => {
     const interval = setInterval(fetchMarketPulse, 30000);
     return () => clearInterval(interval);
   }, [fetchMarketPulse]);
 
-  // 轮播控制
-  useEffect(() => {
-    if (!marketData || loading) return;
-    
-    const interval = setInterval(() => {
-      setScrollPosition((prev) => (prev + 1) % 3);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [marketData, loading]);
+  const indices = useMemo(() => {
+    if (marketData?.indices?.length >= 5) {
+      return marketData.indices.slice(0, 5);
+    }
+    return fallbackIndices;
+  }, [marketData]);
 
-  // 如果正在加载或没有数据，显示加载状态
+  const marqueeItems = useMemo(() => [...indices, ...indices], [indices]);
+
   if (loading) {
     return (
       <div className="market-ticker">
@@ -81,7 +68,7 @@ const MarketTicker = () => {
     );
   }
 
-  if (error || !marketData || !marketData.indices) {
+  if (error || !indices.length) {
     return (
       <div className="market-ticker">
         <div className="ticker-error">
@@ -91,16 +78,10 @@ const MarketTicker = () => {
     );
   }
 
-  const visibleIndices = [
-    marketData.indices[scrollPosition % 3],
-    marketData.indices[(scrollPosition + 1) % 3],
-    marketData.indices[(scrollPosition + 2) % 3]
-  ];
-
   return (
     <div className="market-ticker">
-      <div className="ticker-track">
-        {visibleIndices.map((item, idx) => (
+      <div className="ticker-track ticker-track--marquee">
+        {marqueeItems.map((item, idx) => (
           <div key={`${item.code}-${idx}`} className="ticker-item">
             <span className="ticker-name">{item.name}</span>
             <span className="ticker-value">{item.value?.toFixed(2) || '--'}</span>
@@ -109,10 +90,6 @@ const MarketTicker = () => {
             </span>
           </div>
         ))}
-        <div className="ticker-turnover">
-          <span className="turnover-label">成交额</span>
-          <span className="turnover-value">{marketData.turnover || '--'}</span>
-        </div>
       </div>
     </div>
   );
