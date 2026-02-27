@@ -6,7 +6,7 @@ import api from '../api';
 
 const { Option } = Select;
 
-const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
+const KLineChart = ({ stockCode, title = "K线图", height = 400, data }) => {
   const [klineData, setKlineData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -15,23 +15,38 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
-  // 获取K线数据
+  // 将外部传入的 10 日数据转换为 K 线结构
+  const normalizeExternalData = useCallback((externalList = []) => {
+    return externalList.map((item) => {
+      const closePrice = item.close_price ?? item.close ?? item.price ?? 0;
+      return {
+        date: item.date,
+        open: item.open ?? closePrice,
+        close: item.close ?? closePrice,
+        low: item.low ?? closePrice,
+        high: item.high ?? closePrice
+      };
+    });
+  }, []);
+
+  // 获取K线数据（外部 data 有值时不请求接口）
   const fetchKlineData = useCallback(async (periodValue = period) => {
+    if (Array.isArray(data) && data.length > 0) return;
     if (!stockCode || stockCode === '--') return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await api.get(`/kline?symbol=${stockCode}&period=${periodValue}`);
-      
-      if (data && data.klines) {
+      const response = await api.get(`/kline?symbol=${stockCode}&period=${periodValue}`);
+
+      if (response && response.klines) {
         // 首屏只显示最近200条，但存储全部数据用于DataZoom
-        const recentData = data.klines.slice(-displayCount);
+        const recentData = response.klines.slice(-displayCount);
         setKlineData({
-          allData: data.klines,
+          allData: response.klines,
           displayData: recentData,
-          total: data.klines.length
+          total: response.klines.length
         });
       } else {
         setKlineData(null);
@@ -44,9 +59,24 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
     } finally {
       setLoading(false);
     }
-  }, [stockCode, period, displayCount]);
+  }, [stockCode, period, displayCount, data]);
 
-  // 初始数据加载
+  // 优先使用外部传入的 10 日数据
+  useEffect(() => {
+    if (Array.isArray(data) && data.length > 0) {
+      const normalized = normalizeExternalData(data);
+      const recentData = normalized.slice(-displayCount);
+      setKlineData({
+        allData: normalized,
+        displayData: recentData,
+        total: normalized.length
+      });
+      setError(null);
+      setLoading(false);
+    }
+  }, [data, displayCount, normalizeExternalData]);
+
+  // 初始数据加载（无外部数据时）
   useEffect(() => {
     fetchKlineData();
   }, [fetchKlineData]);
@@ -68,6 +98,9 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
     ]);
 
     const xData = klineData.allData.map(item => item.date || item.time);
+    const zoomStart = klineData.total > 0
+      ? Math.max(0, ((klineData.total - displayCount) / klineData.total) * 100)
+      : 0;
 
     const option = {
       title: {
@@ -80,15 +113,15 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
           type: 'cross'
         },
         formatter: function (params) {
-          const data = params[0];
-          const values = data.value;
+          const point = params[0];
+          const values = point.value;
           return `
             <div>
-              <strong>${data.name}</strong><br/>
-              开盘: ${values[1]}<br/>
-              收盘: ${values[2]}<br/>
-              最低: ${values[3]}<br/>
-              最高: ${values[4]}
+              <strong>${point.name}</strong><br/>
+              开盘: ${values[0]}<br/>
+              收盘: ${values[1]}<br/>
+              最低: ${values[2]}<br/>
+              最高: ${values[3]}
             </div>
           `;
         }
@@ -117,7 +150,7 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
       dataZoom: [
         {
           type: 'inside',
-          start: Math.max(0, ((klineData.total - displayCount) / klineData.total) * 100),
+          start: zoomStart,
           end: 100,
           minValueSpan: 50 // 最小显示50条数据
         },
@@ -125,7 +158,7 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
           show: true,
           type: 'slider',
           top: '90%',
-          start: Math.max(0, ((klineData.total - displayCount) / klineData.total) * 100),
+          start: zoomStart,
           end: 100,
           minValueSpan: 50,
           rangeMode: ['percent', 'percent']
@@ -135,7 +168,7 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
         {
           name: 'K线',
           type: 'candlestick',
-          data: klineData,
+          data: allKlineData,
           itemStyle: {
             color: '#ec0000',
             color0: '#00da3c',
@@ -206,10 +239,10 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
   return (
     <Card
       title={
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center' 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
           <span style={{ fontSize: '16px', fontWeight: '600' }}>
             {stockCode} {title}
@@ -229,16 +262,16 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
               <Option value="5y">5年</Option>
             </Select>
             <Tooltip title="刷新数据">
-              <Button 
-                icon={<ReloadOutlined />} 
+              <Button
+                icon={<ReloadOutlined />}
                 size="small"
                 onClick={handleRefresh}
                 loading={loading}
               />
             </Tooltip>
             <Tooltip title="全屏查看">
-              <Button 
-                icon={<FullscreenOutlined />} 
+              <Button
+                icon={<FullscreenOutlined />}
                 size="small"
                 onClick={handleFullscreen}
               />
@@ -247,20 +280,20 @@ const KLineChart = ({ stockCode, title = "K线图", height = 400 }) => {
         </div>
       }
       bodyStyle={{ padding: '16px' }}
-      style={{ 
+      style={{
         background: '#ffffff',
         boxShadow: 'var(--shadow-soft)',
         borderRadius: '12px'
       }}
     >
       <Spin spinning={loading}>
-        <div 
-          ref={chartRef} 
+        <div
+          ref={chartRef}
           style={{ width: '100%', height: `${height}px` }}
         />
         {klineData && (
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             marginTop: '8px',
             fontSize: '12px',
             color: 'var(--text-muted)'
