@@ -2,319 +2,130 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as echarts from 'echarts';
 import { Card, Spin, Select, Button, Tooltip } from 'antd';
 import { ReloadOutlined, FullscreenOutlined } from '@ant-design/icons';
-import api from '../api';
 
 const { Option } = Select;
 
-const KLineChart = ({ stockCode, title = "K线图", height = 400, data }) => {
-  const [klineData, setKlineData] = useState(null);
+const KLineChart = ({ symbol, title = "历史行情", height = 400 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [period, setPeriod] = useState('5y'); // 默认5年
-  const [displayCount, setDisplayCount] = useState(200); // 首屏显示200条
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
-  // 将外部传入的 10 日数据转换为 K 线结构
-  const normalizeExternalData = useCallback((externalList = []) => {
-    return externalList.map((item) => {
-      const closePrice = item.close_price ?? item.close ?? item.price ?? 0;
-      return {
-        date: item.date,
-        open: item.open ?? closePrice,
-        close: item.close ?? closePrice,
-        low: item.low ?? closePrice,
-        high: item.high ?? closePrice
-      };
-    });
-  }, []);
+  // 北京后端地址
+  const BEIJING_SERVER = "http://82.157.126.222:9000";
 
-  // 获取K线数据（外部 data 有值时不请求接口）
-  const fetchKlineData = useCallback(async (periodValue = period) => {
-    if (Array.isArray(data) && data.length > 0) {
-      console.log('📊 KLineChart: Using external data, skipping API request');
-      return;
-    }
-    if (!stockCode || stockCode === '--') return;
+  const fetchKlineData = useCallback(async () => {
+    // 过滤掉初始空值
+    if (!symbol || symbol === '------' || symbol === '待搜索') return;
 
-    console.log('📊 KLineChart: Fetching data from API for', stockCode);
     setLoading(true);
     setError(null);
 
     try {
-      const response = await api.get(`/kline?symbol=${stockCode}&period=${periodValue}`);
+      // 1. 调用你后端的完整报告接口，这个接口里含有 K 线数据
+      const response = await fetch(`${BEIJING_SERVER}/api/stock_full_report?symbol=${symbol}`);
+      const result = await response.json();
 
-      if (response && response.klines) {
-        // 首屏只显示最近200条，但存储全部数据用于DataZoom
-        const recentData = response.klines.slice(-displayCount);
-        setKlineData({
-          allData: response.klines,
-          displayData: recentData,
-          total: response.klines.length
+      if (result.status === 'success' && result.data?.kline_data) {
+        const rawData = result.data.kline_data; // 这里的格式通常是 [[日期, 开, 高, 低, 收, 量], ...]
+
+        // 2. 转换数据格式给 ECharts
+        // 注意：后端返回顺序可能是 [日期, 开, 收, 低, 高] 或其他，需根据 main.py 里的 fetch_history_data 对应
+        const categoryData = [];
+        const values = [];
+
+        rawData.forEach(item => {
+          // 假设后端顺序: 0:日期, 1:开, 2:高, 3:低, 4:收
+          categoryData.push(item[0]); 
+          values.push([item[1], item[4], item[3], item[2]]); // ECharts 顺序: [开, 收, 低, 高]
         });
-        console.log('✅ KLineChart: Got API data:', response.klines.length, 'items');
+
+        renderChart(categoryData, values);
       } else {
-        setKlineData(null);
-        setError('暂无K线数据');
+        setError('未能从服务器获取到K线序列');
       }
     } catch (err) {
-      console.error('❌ K线数据获取失败:', err);
-      setError('K线数据获取失败');
-      setKlineData(null);
+      console.error('❌ K线拉取失败:', err);
+      setError('网络连接失败，请检查后端9000端口');
     } finally {
       setLoading(false);
     }
-  }, [stockCode, period, displayCount, data]);
+  }, [symbol]);
 
-  // 优先使用外部传入的 10 日数据
-  useEffect(() => {
-    if (Array.isArray(data) && data.length > 0) {
-      console.log('📊 Using external data for KLineChart:', data);
-      const normalized = normalizeExternalData(data);
-      const recentData = normalized.slice(-displayCount);
-      setKlineData({
-        allData: normalized,
-        displayData: recentData,
-        total: normalized.length
-      });
-      setError(null);
-      setLoading(false);
-    }
-  }, [data, displayCount, normalizeExternalData]);
-
-  // 初始数据加载（无外部数据时）
-  useEffect(() => {
-    fetchKlineData();
-  }, [fetchKlineData]);
-
-  useEffect(() => {
-    if (!chartRef.current || !klineData || klineData.displayData.length === 0) return;
-
-    // 初始化图表
+  const renderChart = (categoryData, values) => {
+    if (!chartRef.current) return;
+    
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current);
     }
 
-    // 使用全部数据准备K线，但首屏只显示部分
-    const allKlineData = klineData.allData.map(item => [
-      item.open,    // 开盘价
-      item.close,   // 收盘价
-      item.low,     // 最低价
-      item.high     // 最高价
-    ]);
-
-    const xData = klineData.allData.map(item => item.date || item.time);
-    const zoomStart = klineData.total > 0
-      ? Math.max(0, ((klineData.total - displayCount) / klineData.total) * 100)
-      : 0;
-
     const option = {
-      title: {
-        text: title,
-        left: 'center'
-      },
       tooltip: {
         trigger: 'axis',
-        axisPointer: {
-          type: 'cross'
-        },
-        formatter: function (params) {
-          const point = params[0];
-          const values = point.value;
-          return `
-            <div>
-              <strong>${point.name}</strong><br/>
-              开盘: ${values[0]}<br/>
-              收盘: ${values[1]}<br/>
-              最低: ${values[2]}<br/>
-              最高: ${values[3]}
-            </div>
-          `;
-        }
+        axisPointer: { type: 'cross' },
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        textStyle: { color: '#333' }
       },
-      grid: {
-        left: '10%',
-        right: '10%',
-        bottom: '15%'
-      },
+      grid: { left: '8%', right: '4%', bottom: '15%', top: '10%' },
       xAxis: {
         type: 'category',
-        data: xData,
+        data: categoryData,
         scale: true,
         boundaryGap: false,
-        axisLine: { onZero: false },
-        splitLine: { show: false },
-        min: 'dataMin',
-        max: 'dataMax'
+        axisLine: { lineStyle: { color: '#ccc' } },
+        splitLine: { show: false }
       },
       yAxis: {
         scale: true,
-        splitArea: {
-          show: true
-        }
+        axisLine: { lineStyle: { color: '#ccc' } },
+        splitLine: { lineStyle: { color: '#eee' } }
       },
       dataZoom: [
-        {
-          type: 'inside',
-          start: zoomStart,
-          end: 100,
-          minValueSpan: 50 // 最小显示50条数据
-        },
-        {
-          show: true,
-          type: 'slider',
-          top: '90%',
-          start: zoomStart,
-          end: 100,
-          minValueSpan: 50,
-          rangeMode: ['percent', 'percent']
-        }
+        { type: 'inside', start: 70, end: 100 },
+        { type: 'slider', show: true, top: '90%', start: 70, end: 100 }
       ],
       series: [
         {
-          name: 'K线',
+          name: '日K',
           type: 'candlestick',
-          data: allKlineData,
+          data: values,
           itemStyle: {
-            color: '#ec0000',
-            color0: '#00da3c',
-            borderColor: '#8A0000',
-            borderColor0: '#008F28'
+            color: '#ef5350',     // 阳线红色
+            color0: '#26a69a',    // 阴线绿色
+            borderColor: '#ef5350',
+            borderColor0: '#26a69a'
           }
         }
       ]
     };
 
     chartInstance.current.setOption(option);
-
-    // 响应式处理
-    const handleResize = () => {
-      chartInstance.current?.resize();
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [klineData, title, displayCount]);
+  };
 
   useEffect(() => {
-    return () => {
-      if (chartInstance.current) {
-        chartInstance.current.dispose();
-        chartInstance.current = null;
-      }
-    };
+    fetchKlineData();
+  }, [fetchKlineData]);
+
+  // 响应式调整
+  useEffect(() => {
+    const handleResize = () => chartInstance.current?.resize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handlePeriodChange = (value) => {
-    setPeriod(value);
-    fetchKlineData(value);
-  };
-
-  const handleRefresh = () => {
-    fetchKlineData();
-  };
-
-  const handleFullscreen = () => {
-    if (chartInstance.current) {
-      // 简单的全屏实现
-      const chartDom = chartInstance.current.getDom();
-      if (chartDom.requestFullscreen) {
-        chartDom.requestFullscreen();
-      }
-    }
-  };
-
-  if (error) {
-    return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <div style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>
-            {error}
-          </div>
-          <Button type="primary" onClick={handleRefresh}>
-            重新加载
-          </Button>
-        </div>
-      </Card>
-    );
-  }
-
   return (
-    <Card
-      title={
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <span style={{ fontSize: '16px', fontWeight: '600' }}>
-            {stockCode} {title}
-          </span>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <Select
-              value={period}
-              onChange={handlePeriodChange}
-              style={{ width: '100px' }}
-              size="small"
-            >
-              <Option value="1m">1月</Option>
-              <Option value="3m">3月</Option>
-              <Option value="6m">6月</Option>
-              <Option value="1y">1年</Option>
-              <Option value="3y">3年</Option>
-              <Option value="5y">5年</Option>
-            </Select>
-            <Tooltip title="刷新数据">
-              <Button
-                icon={<ReloadOutlined />}
-                size="small"
-                onClick={handleRefresh}
-                loading={loading}
-              />
-            </Tooltip>
-            <Tooltip title="全屏查看">
-              <Button
-                icon={<FullscreenOutlined />}
-                size="small"
-                onClick={handleFullscreen}
-              />
-            </Tooltip>
-          </div>
-        </div>
-      }
-      bodyStyle={{ padding: '16px' }}
-      style={{
-        background: '#ffffff',
-        boxShadow: 'var(--shadow-soft)',
-        borderRadius: '12px'
-      }}
-    >
+    <div className="w-full h-full relative">
       <Spin spinning={loading}>
-        <div
-          ref={chartRef}
-          style={{ width: '100%', height: `${height}px` }}
-        />
-        {klineData && (
-          <div style={{
-            textAlign: 'center',
-            marginTop: '8px',
-            fontSize: '12px',
-            color: 'var(--text-muted)'
-          }}>
-            显示最近 {klineData.displayData.length} 条，共 {klineData.total} 条数据
-            {period === '5y' && ' · 支持拖动缩放查看完整5年历史'}
+        {error ? (
+          <div className="flex flex-col items-center justify-center h-[400px] text-slate-400">
+            <p className="mb-4">{error}</p>
+            <Button size="small" onClick={fetchKlineData}>重试</Button>
           </div>
-        )}
-        {!klineData && !loading && (
-          <div style={{ textAlign: 'center', padding: '50px' }}>
-            暂无K线数据
-          </div>
+        ) : (
+          <div ref={chartRef} style={{ width: '100%', height: `${height}px` }} />
         )}
       </Spin>
-    </Card>
+    </div>
   );
 };
 
