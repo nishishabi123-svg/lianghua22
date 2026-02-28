@@ -1,74 +1,37 @@
-/* 彻底清除旧的布局干扰 */
-.app-shell {
-  height: 100vh;
+/* 锁定整站不出现横向滚动条 */
+html, body, #root {
+  margin: 0;
+  padding: 0;
   width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
-/* 确保滚动条美观 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* 布局大框架 */
+.flex.h-screen {
+  display: flex !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* 这里的 content-area 或类似旧名称如果还有，全部重置 */
-.content-area, .app-main {
-  background-color: transparent !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
-/* 修复可能的 K 线图表容器高度问题 */
-.k-line-container {
-  min-height: 400px;
-  height: 100%;
-}
-
-/* 动画效果 */
-.animate-in {
-  animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-/* --- 布局暴力修正：强制防止左侧挤压右侧 --- */
-
-/* 1. 确保最外层容器不溢出屏幕 */
-#root, .flex.h-screen {
-  width: 100vw !important;
-  height: 100vh !important;
-  overflow: hidden !important;
-}
-
-/* 2. 锁定左侧导航栏：固定宽度 260px，禁止收缩，禁止扩展 */
-aside, 
-.flex-shrink-0,
-nav[class*="SideNav"] {
+/* 锁定侧边栏：强行固定 260px，不许动 */
+aside, .side-nav, [class*="SideNav"] {
   width: 260px !important;
   min-width: 260px !important;
   max-width: 260px !important;
   flex: 0 0 260px !important;
 }
 
-/* 3. 释放右侧主区域：允许它占据剩余的所有空间，并处理内部溢出 */
+/* 锁定右侧：必须撑满剩余空间，且 min-w-0 防止被 K线图撑爆 */
 .flex-1.flex.flex-col {
   flex: 1 1 0% !important;
-  min-width: 0 !important; /* 关键：防止被内部 Echarts 撑宽 */
+  min-width: 0 !important;
   width: auto !important;
 }
 
-/* 4. 确保主内容区不会横向滚动 */
-main {
-  width: 100% !important;
-  overflow-x: hidden !important;
+/* 跑马灯容器样式恢复 */
+.market-ticker {
+  width: 100%;
+  overflow: hidden;
+  background: white;
 }
