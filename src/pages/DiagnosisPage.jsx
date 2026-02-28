@@ -1,185 +1,138 @@
+import React, { useState } from 'react';
 import { useStockData } from '../hooks/useStockData';
-import React, { useState, useMemo } from 'react';
-// 请确保这些路径正确，如果没有对应文件，请先创建或使用占位符
-import SideNav from '../components/SideNav'; 
-import MarketTicker from '../components/MarketTicker'; // 需确保此组件支持自定义宽度
-import CyberSearch from '../components/CyberSearch';
 import KLineChart from '../components/KLineChart';
 import AIMultiDimensionAnalysis from '../components/AIMultiDimensionAnalysis';
 
-// --- 模拟数据 (实际应从 API 获取) ---
-const HOT_SECTORS_UP = [
-  { name: '半导体', change: '+1.85%', leader: '中芯国际' },
-  { name: '人工智能', change: '+1.42%', leader: '科大讯飞' },
-  { name: '新能源', change: '+0.98%', leader: '宁德时代' },
-  { name: '医药生物', change: '+0.75%', leader: '恒瑞医药' },
-];
-
-const HOT_SECTORS_DOWN = [
-  { name: '房地产', change: '-1.20%', leader: '万科 A' },
-  { name: '银行', change: '-0.85%', leader: '招商银行' },
-  { name: '钢铁', change: '-0.60%', leader: '宝钢股份' },
-  { name: '煤炭', change: '-0.45%', leader: '中国神华' },
-];
-
-const DiagnosisPage = () => {
+const DiagnosisPage = ({ stockData, loading }) => {
   const [searchCode, setSearchCode] = useState('');
   
-  // ✅ 新增：引入并调用 Hook
-  const { 
-    stockData, 
-    loading, 
-    error, 
-    currentStockCode, 
-    setStockCode,
-    manualRefresh 
-  } = useStockData(4000);
-
-  // ✅ 新增：准备展示数据 (优先用实时数据)
+  // 优先使用父组件传下来的实时数据，如果没有则显示默认
   const currentStock = stockData || { 
-    code: '000001', 
-    name: '平安银行', 
-    price: 10.50, 
-    change: '+0.5%' 
+    code: '600519', 
+    name: '贵州茅台', 
+    price: 1685.20, 
+    change: '+2.45%',
+    turnover: '0.32%',
+    amount: '42.8亿'
   };
-  
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="space-y-6 animate-in fade-in duration-500">
       
-      {/* 1. 左侧侧边栏 (固定宽度) */}
-      <aside className="w-64 bg-white border-r border-sky-100 shadow-sm z-20 flex-shrink-0">
-        <SideNav /> 
-      </aside>
+      {/* 1. 核心搜索区 - 首页主入口 */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-sky-400"></div>
+        <h2 className="text-2xl font-black text-gray-800 mb-6">智能个股分析中心</h2>
+        <div className="w-full max-w-3xl flex gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-200 shadow-inner">
+          <input 
+            type="text" 
+            placeholder="输入股票代码或名称，开启 AI 深度分析..." 
+            className="flex-1 bg-transparent px-6 py-3 outline-none text-lg"
+            value={searchCode}
+            onChange={(e) => setSearchCode(e.target.value)}
+          />
+          <button className="px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center gap-2">
+            <span>⚡</span> 开始分析
+          </button>
+        </div>
+      </section>
 
-      {/* 主体内容区 */}
-      <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* 2. 顶部导航栏 (天蓝渐变) */}
-        <header className="h-20 bg-gradient-to-r from-sky-500 to-blue-600 shadow-md flex items-center px-6 flex-shrink-0">
-          {/* 左侧：Logo 区域 (预留空间给侧边栏对齐) */}
-          <div className="w-64 flex-shrink-0 flex flex-col justify-center">
-            <h1 className="text-xl font-bold text-white tracking-wide">牛消息 AI 系统</h1>
-            <p className="text-xs text-sky-100 opacity-90 mt-0.5">智能分析 · 辅助决策</p>
+      {/* 2. K 线与实时信息分屏区 */}
+      <section className="grid grid-cols-12 gap-6 h-[500px]">
+        {/* 左侧：K 线图 (8格) */}
+        <div className="col-span-12 lg:col-span-8 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+          <div className="p-5 border-b flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <h3 className="text-2xl font-black text-gray-800">{currentStock.name}</h3>
+              <span className="text-gray-400 font-mono bg-gray-50 px-2 py-1 rounded">{currentStock.code}</span>
+            </div>
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              {['分时', '日K', '周K'].map(t => (
+                <button key={t} className={`px-4 py-1 text-sm rounded-md ${t==='日K'?'bg-white shadow-sm font-bold text-blue-600':'text-gray-500'}`}>{t}</button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 bg-gray-900 m-4 rounded-xl relative">
+             <KLineChart symbol={currentStock.code} />
+             {loading && <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center text-white">加载数据中...</div>}
+          </div>
+        </div>
+
+        {/* 右侧：实时数据卡片 (4格) */}
+        <div className="col-span-12 lg:col-span-4 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h3 className="font-bold text-gray-700 mb-6 flex items-center justify-between">
+            <span>实时盘口数据</span>
+            <span className="animate-pulse text-xs text-green-500 bg-green-50 px-2 py-1 rounded-full font-bold uppercase">Live</span>
+          </h3>
+          <div className="space-y-6">
+            <div className="flex justify-between items-end">
+              <span className="text-gray-400 text-sm">当前成交价</span>
+              <span className={`text-5xl font-black ${currentStock.change.includes('+') ? 'text-red-500' : 'text-green-500'}`}>
+                {currentStock.price}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="text-xs text-gray-400 mb-1">今日涨跌幅</div>
+                <div className={`text-xl font-bold ${currentStock.change.includes('+') ? 'text-red-500' : 'text-green-500'}`}>{currentStock.change}</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="text-xs text-gray-400 mb-1">成交额</div>
+                <div className="text-xl font-bold text-gray-800">{currentStock.amount}</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="text-xs text-gray-400 mb-1">换手率</div>
+                <div className="text-xl font-bold text-gray-800">{currentStock.turnover}</div>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <div className="text-xs text-gray-400 mb-1">市盈率(T)</div>
+                <div className="text-xl font-bold text-gray-800">28.4</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. AI 6 维度分析区 */}
+      <section className="py-4">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
+          AI 多维度深度诊断
+        </h3>
+        <AIMultiDimensionAnalysis /> {/* 确保这个组件内部渲染两排共6个卡片 */}
+      </section>
+
+      {/* 4. 最终 AI 决策长条 (醒目、包含打分) */}
+      <section className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 rounded-2xl p-8 shadow-xl text-white">
+        <div className="flex flex-col lg:flex-row items-center gap-10">
+          <div className="flex flex-col items-center border-r border-white/10 pr-10">
+            <span className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-1">AI 综合评分</span>
+            <div className="text-7xl font-black bg-clip-text text-transparent bg-gradient-to-b from-white to-blue-400">92</div>
+            <div className="text-xs text-blue-400 mt-2">Beat 95% Stocks</div>
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-3">
+              <span className="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded animate-pulse">最终决策建议</span>
+              <h4 className="text-4xl font-black text-yellow-400">强力建议买入 (Strong Buy)</h4>
+            </div>
+            <p className="text-gray-300 text-sm leading-relaxed max-w-3xl border-l-2 border-blue-500/50 pl-4 italic">
+              基于 6 维模型综合评估：主力资金已完成箱体吸筹，配合技术面空中加油形态，且所属行业处于政策利好周期。建议在 1680 支撑线附近积极建仓，盈亏比极高。
+            </p>
           </div>
 
-          {/* 中间：大盘跑马灯 (占据剩余所有空间) */}
-          <div className="flex-1 mx-6 overflow-hidden">
-            <MarketTicker /> 
-            {/* 注意：请确保 MarketTicker 组件内部样式设置为 width: 100% */}
-          </div>
-
-          {/* 右侧：用户中心 */}
-          <div className="w-48 flex-shrink-0 flex justify-end">
-            <button className="px-5 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 rounded-lg text-white text-sm font-medium transition-all flex items-center gap-2">
-              <span>👤</span> 登录 / 个人中心
+          <div className="flex flex-col gap-3">
+            <button className="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-xl font-black shadow-lg shadow-blue-500/20 transition-all active:scale-95">
+              立即加仓跟踪
             </button>
+            <button className="text-gray-400 text-sm hover:text-white transition-colors">下载详细分析报告 .PDF</button>
           </div>
-        </header>
+        </div>
+      </section>
 
-        {/* 滚动内容区 */}
-        <main className="flex-1 overflow-y-auto p-6 scroll-smooth">
-          <div className="max-w-7xl mx-auto space-y-6">
-            
-            {/* 3. 核心搜索区 (C 位) */}
-            <section className="bg-white rounded-2xl shadow-sm border border-sky-100 p-8 flex flex-col items-center justify-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-400 to-blue-500"></div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">输入代码，立即获取 AI 决策</h2>
-              <div className="w-full max-w-2xl flex gap-3">
-                <input 
-                  type="text" 
-                  placeholder="请输入股票代码或名称 (如：600519)" 
-                  className="flex-1 px-6 py-4 rounded-xl border-2 border-sky-100 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 outline-none text-lg transition-all"
-                  value={searchCode}
-                  onChange={(e) => setSearchCode(e.target.value)}
-                />
-                <button className="px-8 py-4 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all text-lg">
-                  立即诊断
-                </button>
-              </div>
-              <p className="mt-3 text-sm text-gray-400">支持沪深 A 股、港股、美股 · 毫秒级响应</p>
-            </section>
-
-            {/* 4. 市场与 K 线分屏区 (7:3) */}
-            <section className="grid grid-cols-1 lg:grid-cols-10 gap-6 h-auto lg:h-[500px]">
-              
-              {/* 左侧：K 线图 (70%) */}
-              <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-sky-100 flex flex-col overflow-hidden">
-                <div className="p-5 border-b border-sky-50 flex justify-between items-center bg-slate-50/50">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">{currentStock.name} <span className="text-gray-500 text-base font-normal">({currentStock.code})</span></h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-2xl font-bold text-gray-900">¥{currentStock.price}</span>
-                      <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded text-sm font-bold">{currentStock.change}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {['分时', '10 日', '日 K', '周 K'].map((tab) => (
-                      <button key={tab} className="px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-sky-50 text-gray-600 hover:text-sky-600 transition-colors">
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex-1 p-4 bg-white">
-                  {/* 这里放入你的 K 线组件 */}
-                  <KLineChart symbol={currentStock.code} height="100%" />
-                  {/* 如果没有组件，显示占位符 */}
-                  {/* <div className="w-full h-full flex items-center justify-center text-gray-400 bg-slate-50 rounded-lg">K 线图表区域</div> */}
-                </div>
-              </div>
-
-              {/* 右侧：热门板块 (30%) - 正方形卡片两排 */}
-              <div className="lg:col-span-3 flex flex-col gap-6 overflow-y-auto no-scrollbar">
-                
-                {/* 上排：涨幅榜 */}
-                <div className="flex-1 bg-white rounded-2xl shadow-sm border border-sky-100 p-4 flex flex-col">
-                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-red-500 rounded-full"></span> 涨幅榜
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 content-start">
-                    {HOT_SECTORS_UP.map((sector, idx) => (
-                      <div key={idx} className="bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl p-3 cursor-pointer transition-all group">
-                        <div className="text-xs text-gray-500 mb-1">{sector.name}</div>
-                        <div className="text-lg font-bold text-red-600 mb-1">{sector.change}</div>
-                        <div className="text-xs text-gray-400 truncate group-hover:text-red-500">龙头：{sector.leader}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 下排：跌幅榜 */}
-                <div className="flex-1 bg-white rounded-2xl shadow-sm border border-sky-100 p-4 flex flex-col">
-                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-4 bg-green-500 rounded-full"></span> 跌幅榜
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3 content-start">
-                    {HOT_SECTORS_DOWN.map((sector, idx) => (
-                      <div key={idx} className="bg-green-50 hover:bg-green-100 border border-green-100 rounded-xl p-3 cursor-pointer transition-all group">
-                        <div className="text-xs text-gray-500 mb-1">{sector.name}</div>
-                        <div className="text-lg font-bold text-green-600 mb-1">{sector.change}</div>
-                        <div className="text-xs text-gray-400 truncate group-hover:text-green-500">龙头：{sector.leader}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </section>
-
-            {/* 5. AI 多维度分析区 (扑克牌布局) */}
-            <section>
-              <AIMultiDimensionAnalysis />
-            </section>
-
-            {/* 底部 */}
-            <footer className="text-center text-xs text-gray-400 py-6 border-t border-sky-100 mt-8">
-              风险提示：AI 分析仅供参考，不构成投资建议 · 市场有风险，投资需谨慎
-            </footer>
-
-          </div>
-        </main>
-      </div>
+      <footer className="text-center text-xs text-gray-400 py-10">
+        © 2024 AI 智投系统 · 投资有风险 决策需谨慎
+      </footer>
     </div>
   );
 };

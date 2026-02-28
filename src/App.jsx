@@ -1,3 +1,8 @@
+import SideNav from './components/SideNav';
+import MarketTicker from './components/MarketTicker';
+// 确保 DiagnosisPage 是从正确路径引入的
+import DiagnosisPage from './pages/DiagnosisPage';
+
 import DiagnosisPage from './pages/DiagnosisPage';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -215,97 +220,65 @@ function App() {
   }, [autoRefreshEnabled, marketStatus.isMarketOpen, refreshInterval, refreshStockList, stockList.length]);
 
   return (
+    
     <ConfigProvider locale={zhCN}>
       <Router>
-        <div className="app-shell">
+        {/* 外层大容器：确保背景色是浅灰，占满全屏 */}
+        <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
+          
+          {/* 左侧：侧边栏组件 */}
           <SideNav />
-          <div className="app-main">
-            <header className="top-bar">
-              <div className="top-bar__brand">
-                <div className="brand-title">AI 决策终端</div>
-                <div className="brand-subtitle">保姆级决策</div>
+
+          {/* 右侧：主体区 (包含头部和内容) */}
+          <div className="flex-1 flex flex-col min-w-0">
+            
+            {/* 顶部：跑马灯 + 用户中心 */}
+            <header className="h-16 bg-white shadow-sm flex items-center px-6 z-10 justify-between flex-shrink-0 border-b border-gray-100">
+              <div className="flex-1 overflow-hidden">
+                <MarketTicker /> 
               </div>
-              <div className="top-bar__ticker">
-                <MarketTicker />
-              </div>
-              <div className="top-bar__right">
-                <div className="data-status">
-                  <div className="status-dot online" title="数据连接正常"></div>
-                </div>
+              <div className="flex items-center space-x-4 ml-6">
                 <button
-                  className="user-center-button"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full text-sm font-bold transition-all shadow-md active:scale-95"
                   onClick={() => isLoggedIn ? setShowUserCenter(true) : setLoginModalVisible(true)}
                 >
-                  {isLoggedIn ? '个人中心' : '登录'}
+                  {isLoggedIn ? '个人中心' : '立即登录'}
                 </button>
               </div>
             </header>
 
-
-            <main className="content-area">
-              <Routes>
-                <Route
-                  path="/"
-                  element={(
-                    <DiagnosisPage
-                      stockData={stockData}
-                      previousStockData={previousStockData}
-                      loading={loading || multiLoading}
-                      error={error}
-                      marketStatus={marketStatus}
-                      lastUpdate={lastUpdate}
-                      autoRefreshEnabled={autoRefreshEnabled}
-                      refreshInterval={refreshInterval}
-                      onToggleAutoRefresh={toggleAutoRefresh}
-                      onManualRefresh={handleManualRefresh}
-                      onIntervalChange={handleIntervalChange}
-                      onMarketStatusChange={handleMarketStatusChange}
-                      onSearch={handleSearch}
-                      searchLoading={multiLoading || loading}
-                      currentStockCode={currentStockCode}
-                      stockList={stockList}
-                      isVip={isVip}
-
-                    />
-                  )}
-                />
-                <Route path="/" element={<DiagnosisPage />} />
-                <Route path="/strategy" element={<StrategyPage />} />
-                <Route path="/vip" element={<VipPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/admin" element={<AdminPanel />} />
-              </Routes>
+            {/* 内容滚动区 */}
+            <main className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-[1440px] mx-auto">
+                <Routes>
+                  <Route
+                    path="/"
+                    element={
+                      <DiagnosisPage
+                        stockData={stockData}
+                        loading={loading || multiLoading}
+                        onSearch={handleSearch}
+                        currentStockCode={currentStockCode}
+                      />
+                    }
+                  />
+                  <Route path="/strategy" element={<StrategyPage />} />
+                  <Route path="/vip" element={<VipPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/admin" element={<AdminPanel />} />
+                </Routes>
+              </div>
             </main>
           </div>
-          <div className="footer-risk-reminder">
-            意见反馈:cuba@88.com
-          </div>
         </div>
-        <GlobalLoading visible={(loading || multiLoading) && !stockData} text="正在获取行情数据..." />
-        
-        {/* 登录弹窗 */}
-        <LoginModal
-          visible={loginModalVisible}
-          onClose={() => setLoginModalVisible(false)}
-          onLogin={handleLogin}
-        />
-        
-        {/* 个人中心弹窗 */}
-        <UserCenterModal
-          visible={showUserCenter}
-          onClose={() => setShowUserCenter(false)}
-          userInfo={userInfo}
-        />
-        
-        {/* 支付弹窗 */}
-        <PaymentModal
-          visible={paymentModalVisible}
-          onClose={() => setPaymentModalVisible(false)}
-          onSuccess={handlePayment}
-        />
+
+        {/* 弹窗组件 */}
+        <LoginModal visible={loginModalVisible} onClose={() => setLoginModalVisible(false)} onLogin={handleLogin} />
+        <UserCenterModal visible={showUserCenter} onClose={() => setShowUserCenter(false)} userInfo={userInfo} />
+        <PaymentModal visible={paymentModalVisible} onClose={() => setPaymentModalVisible(false)} onSuccess={handlePayment} />
       </Router>
     </ConfigProvider>
   );
-}
+  }
 
 export default App;
