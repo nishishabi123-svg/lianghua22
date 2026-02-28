@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { marketApi } from '../api/market';
+import api from '../api';
 
 const fallbackIndices = [
   { name: '上证', code: '000001', value: 3245.67, change: 0.82, trend: 'up' },
@@ -18,8 +18,8 @@ const MarketTicker = () => {
     setLoading(true);
     setError(null);
 
-    marketApi
-      .getMarketPulse()
+    api
+      .get('/api/market_index')
       .then((data) => {
         if (data && data.indices) {
           setMarketData(data);
