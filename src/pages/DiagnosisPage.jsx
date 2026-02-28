@@ -1,123 +1,59 @@
 import React, { useState } from 'react';
 import KLineChart from '../components/KLineChart';
 
-const DiagnosisPage = ({ stockData, loading }) => {
-  const [searchCode, setSearchCode] = useState('');
-  
-  const currentStock = stockData || { 
-    code: '600519', name: '贵州茅台', price: 1685.20, change: '+2.45%', amount: '42.8亿', turnover: '0.32%'
-  };
-
+const DiagnosisPage = () => {
   const dimensions = [
-    { title: '基本面', icon: '📊', color: 'blue' },
-    { title: '技术面', icon: '📈', color: 'indigo' },
-    { title: '资金流向', icon: '💰', color: 'emerald' },
-    { title: '市场情绪', icon: '🔥', color: 'orange' },
-    { title: '宏观政策', icon: '🏛️', color: 'cyan' },
-    { title: '外围影响', icon: '🌍', color: 'purple' },
-    { title: '风险探测', icon: '⚠️', color: 'red' },
-    { title: '综合结论', icon: '🧠', color: 'slate' },
+    { title: '基本面', icon: '📊', desc: '财务报表与盈利能力深度解析' },
+    { title: '技术面', icon: '📈', desc: '量价形态与多周期指标共振' },
+    { title: '资金流向', icon: '💰', desc: '北向资金与主力机构席位跟踪' },
+    { title: '市场情绪', icon: '🔥', desc: '涨跌家数比与热点题材热度' },
+    { title: '宏观政策', icon: '🏛️', desc: '行业导向与货币政策影响评级' },
+    { title: '外围影响', icon: '🌍', desc: '美股联动与汇率波动对冲分析' },
+    { title: '风险探测', icon: '⚠️', desc: '商誉减值、股权质押等隐患预警' },
+    { title: '综合结论', icon: '🧠', desc: 'AI全维度加权最终投资建议' },
   ];
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* 1. 一键诊股入口 */}
-      <section className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 flex flex-col items-center">
-        <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-          <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span> 一键诊股
-        </h2>
-        <div className="w-full max-w-2xl flex gap-0 p-1 bg-slate-100 rounded-2xl border border-slate-200">
-          <input 
-            className="flex-1 bg-transparent px-6 py-4 outline-none text-lg font-medium" 
-            placeholder="输入股票代码/名称..."
-            value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value)}
-          />
-          <button className="bg-blue-600 hover:bg-blue-700 text-white w-24 rounded-xl font-black text-xl transition-all shadow-lg active:scale-95">
-            GO
-          </button>
+    <div className="space-y-8 pb-12 animate-in fade-in duration-700">
+      {/* 搜索区：改为磨砂质感 */}
+      <section className="bg-white/60 backdrop-blur-md rounded-[2.5rem] p-10 border border-white shadow-sm flex flex-col items-center">
+        <div className="w-full max-w-2xl flex p-2 bg-slate-200/50 rounded-2xl border border-slate-200 focus-within:border-blue-400 transition-all">
+          <input className="flex-1 bg-transparent px-6 outline-none text-slate-700 font-bold" placeholder="输入股票名称/代码..." />
+          <button className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg hover:shadow-blue-900/20 active:scale-95 transition-all">GO</button>
         </div>
       </section>
 
-      {/* 2. K线与盘口 - 毛玻璃效果 */}
-      <section className="grid grid-cols-12 gap-6 h-[520px]">
-        <div className="col-span-8 bg-white/70 backdrop-blur-xl rounded-3xl border border-white shadow-xl flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-             <div className="flex items-center gap-3">
-               <span className="text-2xl font-black">{currentStock.name}</span>
-               <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-xs font-mono">{currentStock.code}</span>
-             </div>
-             <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
-               {['分时', '日K', '周K'].map(t => <button key={t} className={`px-4 py-1.5 text-xs rounded-lg ${t==='日K'?'bg-white shadow-sm font-bold text-blue-600':'text-slate-500'}`}>{t}</button>)}
-             </div>
-          </div>
-          <div className="flex-1 m-6 rounded-2xl bg-slate-50 border border-slate-100 relative overflow-hidden">
-             <KLineChart symbol={currentStock.code} />
-          </div>
-        </div>
-
-        <div className="col-span-4 bg-gradient-to-br from-white to-blue-50/30 backdrop-blur-xl rounded-3xl border border-white shadow-xl p-8 flex flex-col justify-between">
-          <h3 className="font-bold text-slate-400 text-xs uppercase tracking-widest">实时盘口数据</h3>
-          <div className="mt-4 flex flex-col">
-            <span className="text-sm text-slate-400 mb-1">当前成交价</span>
-            <span className="text-6xl font-black text-slate-900 tracking-tighter">¥{currentStock.price}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-8">
-             <div className="bg-white/50 p-4 rounded-2xl border border-white shadow-sm">
-                <div className="text-[10px] text-slate-400 mb-1 uppercase">今日涨跌</div>
-                <div className="text-xl font-black text-red-500">{currentStock.change}</div>
-             </div>
-             <div className="bg-white/50 p-4 rounded-2xl border border-white shadow-sm">
-                <div className="text-[10px] text-slate-400 mb-1 uppercase">成交额</div>
-                <div className="text-xl font-black text-slate-800">{currentStock.amount}</div>
-             </div>
-             <div className="bg-white/50 p-4 rounded-2xl border border-white shadow-sm">
-                <div className="text-[10px] text-slate-400 mb-1 uppercase">换手率</div>
-                <div className="text-xl font-black text-slate-800">{currentStock.turnover}</div>
-             </div>
-             <div className="bg-white/50 p-4 rounded-2xl border border-white shadow-sm">
-                <div className="text-[10px] text-slate-400 mb-1 uppercase">市盈率(T)</div>
-                <div className="text-xl font-black text-slate-800">28.42</div>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. 8 维 AI 分析矩阵 */}
+      {/* 8维卡片：这是重点优化的朦胧感部分 */}
       <section className="grid grid-cols-4 gap-6">
         {dimensions.map((d, i) => (
-          <div key={i} className="group bg-white/60 backdrop-blur-md p-6 rounded-[2rem] border border-white shadow-sm hover:shadow-xl hover:bg-white hover:-translate-y-2 transition-all duration-500 aspect-square flex flex-col items-center justify-center text-center">
-            <div className="text-4xl mb-4 group-hover:scale-125 transition-transform duration-500">{d.icon}</div>
-            <h4 className="font-black text-slate-800 text-lg mb-2">{d.title}</h4>
-            <div className="w-8 h-1 bg-blue-500/20 rounded-full group-hover:w-16 group-hover:bg-blue-500 transition-all duration-500"></div>
-            <p className="mt-4 text-xs text-slate-400 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity">点击查看深度报告内容...</p>
+          <div key={i} className="group relative aspect-square bg-white/40 backdrop-blur-lg p-8 rounded-[2.5rem] border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(78,67,118,0.15)] hover:bg-white/80 hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center">
+            {/* 卡片背景微光 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-[2.5rem] pointer-events-none"></div>
+            
+            <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-sm">{d.icon}</div>
+            <h4 className="font-black text-slate-700 text-lg mb-2">{d.title}</h4>
+            <p className="text-[10px] text-slate-400 px-4 leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500">{d.desc}</p>
+            
+            <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
           </div>
         ))}
       </section>
 
-      {/* 4. 底部决策条 - 移除个股跟踪，保留报告按钮 */}
-      <section className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px]"></div>
-        <div className="flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-10">
-            <div className="text-center border-r border-white/10 pr-10">
-              <div className="text-[10px] text-blue-400 font-bold tracking-[0.2em] mb-2 uppercase">AI Score</div>
-              <div className="text-7xl font-black bg-clip-text text-transparent bg-gradient-to-b from-white to-blue-400 leading-none">92</div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1 bg-blue-600 rounded text-[10px] font-bold">终端建议</span>
-                <h4 className="text-4xl font-black text-white italic">强力建议买入 <span className="text-blue-400">(Strong Buy)</span></h4>
-              </div>
-              <p className="text-slate-400 text-sm max-w-2xl italic">基于 8 维全量数据：该股处于上升通道底部，资金流向显示主力持续增仓，配合宏观政策面利好，诊断为高确定性机会。</p>
-            </div>
+      {/* 底部决策条：色彩调和 */}
+      <section className="bg-gradient-to-r from-[#2b5876] to-[#4e4376] rounded-[3rem] p-10 text-white shadow-2xl flex items-center justify-between relative overflow-hidden border border-white/10">
+        <div className="flex items-center gap-10 relative z-10">
+          <div className="text-center border-r border-white/20 pr-10">
+            <p className="text-[10px] font-bold text-blue-300 tracking-widest uppercase mb-1">AI Power Score</p>
+            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">92</p>
           </div>
-          
-          <button className="bg-white text-slate-900 px-10 py-5 rounded-2xl font-black hover:bg-blue-50 transition-all shadow-xl flex items-center gap-3 group">
-            <span>📄</span> 一键生成诊断报告
-            <span className="group-hover:translate-x-2 transition-transform">→</span>
-          </button>
+          <div className="space-y-1">
+            <h4 className="text-3xl font-black flex items-center gap-3">建议积极买入 <span className="text-blue-300 text-sm font-light">Strong Buy Opinion</span></h4>
+            <p className="text-blue-100/60 text-xs max-w-xl italic">综合 8 维全量原始数据，AI 探测到多头资金异动，配合技术指标低位金叉，建议于支撑位附近择机入场。</p>
+          </div>
         </div>
+        <button className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-5 rounded-2xl font-bold hover:bg-white hover:text-[#4e4376] transition-all shadow-xl active:scale-95">
+           📄 生成深度诊断报告
+        </button>
       </section>
     </div>
   );
