@@ -1,3 +1,4 @@
+import { useStockData } from '../hooks/useStockData';
 import React, { useState, useMemo } from 'react';
 // 请确保这些路径正确，如果没有对应文件，请先创建或使用占位符
 import SideNav from '../components/SideNav'; 
@@ -24,8 +25,24 @@ const HOT_SECTORS_DOWN = [
 const DiagnosisPage = () => {
   const [searchCode, setSearchCode] = useState('');
   
-  // 模拟当前股票数据
-  const currentStock = { code: '600519', name: '贵州茅台', price: 1780.50, change: '+1.2%' };
+  // ✅ 新增：引入并调用 Hook
+  const { 
+    stockData, 
+    loading, 
+    error, 
+    currentStockCode, 
+    setStockCode,
+    manualRefresh 
+  } = useStockData(4000);
+
+  // ✅ 新增：准备展示数据 (优先用实时数据)
+  const currentStock = stockData || { 
+    code: '000001', 
+    name: '平安银行', 
+    price: 10.50, 
+    change: '+0.5%' 
+  };
+  
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">

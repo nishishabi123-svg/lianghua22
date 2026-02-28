@@ -1,3 +1,4 @@
+import DiagnosisPage from './pages/DiagnosisPage';)
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
@@ -269,6 +270,7 @@ function App() {
                     />
                   )}
                 />
+                <Route path="/" element={<DiagnosisPage />} />
                 <Route path="/strategy" element={<StrategyPage />} />
                 <Route path="/vip" element={<VipPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
