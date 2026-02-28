@@ -14,7 +14,7 @@ function App() {
   return (
     <ConfigProvider locale={zhCN}>
       <Router>
-        <div className="flex h-screen bg-[#f8fafd] overflow-hidden"">
+        <div className="flex h-screen bg-[#f8fafd] overflow-hidden">
             {
             <div style={{ width: '260px', minWidth: '260px', flexShrink: 0 }}>
           <SideNav />
