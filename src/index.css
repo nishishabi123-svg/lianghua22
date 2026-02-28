@@ -672,16 +672,16 @@ body {
   overflow: hidden;
   background: linear-gradient(90deg, #1e40af, #3b82f6);
   color: #ffffff;
-  height: 36px;
+  height: 72px;
   margin: 0 24px;
-  border-radius: 12px;
-  padding: 0 16px;
+  border-radius: 16px;
+  padding: 0 20px;
 }
 
 .ticker-track {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 36px;
   min-width: 100%;
   will-change: transform;
 }
@@ -694,21 +694,22 @@ body {
 .ticker-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 12px;
+  font-size: 16px;
   white-space: nowrap;
-  padding: 4px 0;
+  padding: 8px 0;
 }
 
 .ticker-name {
   color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
+  font-size: 16px;
 }
 
 .ticker-value {
   color: #ffffff;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .ticker-value.ticker-up {
@@ -722,11 +723,13 @@ body {
 .ticker-change.ticker-up {
   color: #4ade80;
   font-weight: 600;
+  font-size: 15px;
 }
 
 .ticker-change.ticker-down {
   color: #f87171;
   font-weight: 600;
+  font-size: 15px;
 }
 
 .ticker-turnover {
