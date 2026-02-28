@@ -1,7 +1,7 @@
-import MarketTicker from './components/MarketTicker';
 // 确保 DiagnosisPage 是从正确路径引入的
 import DiagnosisPage from './pages/DiagnosisPage';
 
+import api from './api';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
@@ -22,8 +22,6 @@ import UserCenterModal from './components/UserCenterModal';
 import LoginModal from './components/LoginModal';
 import PaymentModal from './components/PaymentModal';
 
-import { getQuote } from './api/stock';
-import { useStockData } from './hooks/useStockData';
 
 function App() {
   const {
