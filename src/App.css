@@ -43,7 +43,9 @@ aside, .flex-shrink-0 {
   background: transparent;
   display: flex;
   align-items: center;
+  height: 72px;
 }
+
 
 /* 滚动轨道：这是让它动起来的关键 */
 .ticker-track--marquee {

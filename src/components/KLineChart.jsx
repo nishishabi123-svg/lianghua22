@@ -13,23 +13,26 @@ const KLineChart = ({ symbol, height = 400 }) => {
     setLoading(true);
     try {
       // 必须调用包含 K线数据的完整报告接口
-      const res = await api.get(`/api/stock_full_report?symbol=${symbol}`);
-      if (res.data?.kline_data) {
-        const raw = res.data.kline_data;
-        // 后端数组下标：0日期, 1开, 2高, 3低, 4收
-        // Echarts K线格式：[日期, 开盘, 收盘, 最低, 最高]
-        const dates = raw.map(i => i[0]);
-        const data = raw.map(i => [
-          i[0], // 日期
-          parseFloat(i[1]), // 开盘
-          parseFloat(i[4]), // 收盘  
-          parseFloat(i[3]), // 最低
-          parseFloat(i[2])  // 最高
-        ]);
+      const res = await api.get(`/api/stock_full_report?symbol=${encodeURIComponent(symbol)}`);
+      const payload = res?.data ?? res;
+      const raw =
+        payload?.kline_data ??
+        payload?.data?.kline_data ??
+        payload?.data?.data?.kline_data ??
+        payload?.kline ??
+        [];
+      const { dates, data } = normalizeKlineData(raw);
+
+      if (data.length) {
         renderChart(dates, data);
+      } else {
+        console.warn('K线数据为空或格式异常', raw);
       }
-    } catch (e) { console.error("K线加载失败"); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error('K线加载失败', e);
+    } finally {
+      setLoading(false);
+    }
   }, [symbol]);
 
   const renderChart = (dates, data) => {
