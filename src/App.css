@@ -41,30 +41,34 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* 强制修复布局挤压 */
-#root > div.flex {
-  display: flex !important;
+/* --- 布局暴力修正：强制防止左侧挤压右侧 --- */
+
+/* 1. 确保最外层容器不溢出屏幕 */
+#root, .flex.h-screen {
   width: 100vw !important;
+  height: 100vh !important;
   overflow: hidden !important;
 }
 
-/* 1. 锁定左侧导航栏宽度，防止它被右侧撑开 */
-.flex-shrink-0, 
+/* 2. 锁定左侧导航栏：固定宽度 260px，禁止收缩，禁止扩展 */
 aside, 
-nav {
-  width: 260px !important; /* 根据你导航栏的实际宽度调整 */
+.flex-shrink-0,
+nav[class*="SideNav"] {
+  width: 260px !important;
   min-width: 260px !important;
-  flex-basis: 260px !important;
+  max-width: 260px !important;
+  flex: 0 0 260px !important;
 }
 
-/* 2. 强制右侧容器填充剩余空间并允许收缩 */
-.flex-1 {
+/* 3. 释放右侧主区域：允许它占据剩余的所有空间，并处理内部溢出 */
+.flex-1.flex.flex-col {
   flex: 1 1 0% !important;
-  min-width: 0 !important; /* 关键：允许内容小于其原始尺寸 */
+  min-width: 0 !important; /* 关键：防止被内部 Echarts 撑宽 */
+  width: auto !important;
 }
 
-/* 3. 修正 Echarts 可能引起的撑宽问题 */
-.echarts-for-react, 
-canvas {
+/* 4. 确保主内容区不会横向滚动 */
+main {
   width: 100% !important;
+  overflow-x: hidden !important;
 }
