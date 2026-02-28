@@ -258,7 +258,7 @@ function App() {
         </div>
       </Router>
     </ConfigProvider>
-    
+    );
      }
 
 export default App;
