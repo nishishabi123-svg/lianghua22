@@ -15,14 +15,13 @@ function App() {
     <ConfigProvider locale={zhCN}>
       <Router>
         <div className="flex h-screen bg-[#f8fafd] overflow-hidden">
-            {
-            <div style={{ width: '260px', minWidth: '260px', flexShrink: 0 }}>
-          <SideNav />
-          <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>>
+          <div style={{ width: '260px', minWidth: '260px', flexShrink: 0 }}>
+            <SideNav />
+          </div>
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>
             <header className="h-20 bg-white border-b flex items-center px-8 justify-between">
               <div className="flex-1 max-w-4xl">
-                {/* 这里是你的跑马灯 */}
-                <MarketTicker /> 
+                <MarketTicker />
               </div>
               <div className="flex items-center gap-6 ml-6">
                 <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
@@ -52,4 +51,5 @@ function App() {
     </ConfigProvider>
   );
 }
+
 export default App;
