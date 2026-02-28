@@ -20,7 +20,7 @@ function App() {
           </div>
           <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>
             <header className="h-20 bg-white border-b flex items-center px-8 justify-between">
-              <div className="flex-1 max-w-4xl">
+              <div className="flex-1">
                 <MarketTicker />
               </div>
               <div className="flex items-center gap-6 ml-6">
