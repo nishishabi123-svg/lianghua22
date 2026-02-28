@@ -1,34 +1,34 @@
-/* 锁定整站不出现横向滚动条 */
-html, body, #root {
-  margin: 0;
-  padding: 0;
+/* 基础容器：确保页面撑满屏幕且不横向溢出 */
+#root {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
 }
 
-/* 布局大框架 */
+/* 布局核心：锁定左侧宽度，释放右侧 */
 .flex.h-screen {
   display: flex !important;
+  flex-direction: row !important;
   width: 100% !important;
   height: 100% !important;
 }
 
-/* 锁定侧边栏：强行固定 260px，不许动 */
-aside, .side-nav, [class*="SideNav"] {
+/* 锁定侧边栏：宽度设为 260px，防止被挤压 */
+aside, .flex-shrink-0 {
   width: 260px !important;
   min-width: 260px !important;
-  max-width: 260px !important;
   flex: 0 0 260px !important;
+  background: white;
+  border-right: 1px solid #e2e8f0;
 }
 
-/* 锁定右侧：必须撑满剩余空间，且 min-w-0 防止被 K线图撑爆 */
-.flex-1.flex.flex-col {
+/* 右侧主内容区：自动占据剩余空间 */
+.flex-1 {
   flex: 1 1 0% !important;
   min-width: 0 !important;
-  width: auto !important;
+  display: flex;
+  flex-direction: column;
 }
-
 /* 跑马灯容器样式恢复 */
 .market-ticker {
   width: 100%;
