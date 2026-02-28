@@ -14,9 +14,11 @@ function App() {
   return (
     <ConfigProvider locale={zhCN}>
       <Router>
-        <div className="flex h-screen bg-[#f8fafd]">
+        <div className="flex h-screen bg-[#f8fafd] overflow-hidden"">
+            {
+            <div style={{ width: '260px', minWidth: '260px', flexShrink: 0 }}>
           <SideNav />
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 0 }}>>
             <header className="h-20 bg-white border-b flex items-center px-8 justify-between">
               <div className="flex-1 max-w-4xl">
                 {/* 这里是你的跑马灯 */}
