@@ -217,65 +217,48 @@ function App() {
   }, [autoRefreshEnabled, marketStatus.isMarketOpen, refreshInterval, refreshStockList, stockList.length]);
 
   return (
-    
-    <ConfigProvider locale={zhCN}>
+<ConfigProvider locale={zhCN}>
       <Router>
-        {/* 外层大容器：确保背景色是浅灰，占满全屏 */}
-        <div className="flex h-screen w-screen overflow-hidden bg-gray-100">
-          
-          {/* 左侧：侧边栏组件 */}
-          <SideNav />
+        <div className="flex h-screen w-screen overflow-hidden bg-slate-50">
+          <aside className="w-64 flex-shrink-0 z-20 shadow-2xl">
+            <SideNav />
+          </aside>
 
-          {/* 右侧：主体区 (包含头部和内容) */}
           <div className="flex-1 flex flex-col min-w-0">
-            
-            {/* 顶部：跑马灯 + 用户中心 */}
-            <header className="h-16 bg-white shadow-sm flex items-center px-6 z-10 justify-between flex-shrink-0 border-b border-gray-100">
-              <div className="flex-1 overflow-hidden">
+            {/* 科技感 Header */}
+            <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center px-8 z-10 justify-between">
+              <div className="flex-1 max-w-4xl">
                 <MarketTicker /> 
               </div>
-              <div className="flex items-center space-x-4 ml-6">
-                <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full text-sm font-bold transition-all shadow-md active:scale-95"
-                  onClick={() => isLoggedIn ? setShowUserCenter(true) : setLoginModalVisible(true)}
-                >
-                  {isLoggedIn ? '个人中心' : '立即登录'}
+              
+              <div className="flex items-center gap-6 ml-6">
+                {/* 状态呼吸灯 */}
+                <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Live Data</span>
+                </div>
+                
+                <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95">
+                  登录中心
                 </button>
               </div>
             </header>
 
-            {/* 内容滚动区 */}
-            <main className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-[1440px] mx-auto">
+            <main className="flex-1 overflow-y-auto bg-[#f8fafd]">
+              <div className="max-w-[1600px] mx-auto p-6">
                 <Routes>
-                  <Route
-                    path="/"
-                    element={
-                      <DiagnosisPage
-                        stockData={stockData}
-                        loading={loading || multiLoading}
-                        onSearch={handleSearch}
-                        currentStockCode={currentStockCode}
-                      />
-                    }
-                  />
-                  <Route path="/strategy" element={<StrategyPage />} />
-                  <Route path="/vip" element={<VipPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/" element={<DiagnosisPage stockData={stockData} loading={loading} />} />
                 </Routes>
               </div>
             </main>
           </div>
         </div>
-
-        {/* 弹窗组件 */}
-        <LoginModal visible={loginModalVisible} onClose={() => setLoginModalVisible(false)} onLogin={handleLogin} />
-        <UserCenterModal visible={showUserCenter} onClose={() => setShowUserCenter(false)} userInfo={userInfo} />
-        <PaymentModal visible={paymentModalVisible} onClose={() => setPaymentModalVisible(false)} onSuccess={handlePayment} />
       </Router>
     </ConfigProvider>
-  );
-  }
+    
+     }
 
 export default App;
