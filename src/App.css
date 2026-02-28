@@ -35,3 +35,42 @@ aside, .flex-shrink-0 {
   overflow: hidden;
   background: white;
 }
+/* 跑马灯基础容器 */
+.market-ticker {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  background: transparent;
+  display: flex;
+  align-items: center;
+}
+
+/* 滚动轨道：这是让它动起来的关键 */
+.ticker-track--marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 30s linear infinite !important; /* 强制执行动画 */
+}
+
+/* 鼠标悬停时暂停，方便看数据 */
+.ticker-track--marquee:hover {
+  animation-play-state: paused !important;
+}
+
+/* 定义滚动动画：从 0 移动到一半的位置（因为我们放了两份数据） */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* 单个数据条目的间距 */
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 40px; /* 增加间距，防止太挤 */
+  font-weight: bold;
+}
