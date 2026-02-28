@@ -1,45 +1,87 @@
 import React, { useState } from 'react';
 import KLineChart from '../components/KLineChart';
+import SearchHero from '../components/SearchHero';
+import AIAccordion from '../components/AIAccordion';
+import api from '../api';
 
-const DiagnosisPage = () => {
-  const [searchCode, setSearchCode] = useState('');
-  
-  // 模拟数据
-  const currentStock = { 
-    code: '600519', name: '贵州茅台', price: 1685.20, change: '+2.45%'
+const DiagnosisPage = ({ onSearch, searchLoading, isPageLoading }) => {
+  const [stockList, setStockList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const triggerDiagnosis = async (codes) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await Promise.all(
+        codes.map(async (code) => {
+          const res = await api.get(`/api/stock_decision?code=${code}`);
+          if (res.data) {
+            return {
+              code: code,
+              name: res.data.base_info?.name || code,
+              price: res.data.base_info?.price || 0,
+              change_pct: res.data.base_info?.change_pct || 0,
+              ai_analysis: res.data.ai_analysis || {}
+            };
+          }
+          return null;
+        })
+      );
+      
+      const validResults = results.filter(Boolean);
+      setStockList(validResults);
+    } catch (err) {
+      console.error('诊断失败:', err);
+      setError('诊断请求失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const dimensions = [
-    { title: '基本面', icon: '📊', desc: '财务报表与盈利能力' },
-    { title: '技术面', icon: '📈', desc: '量价形态与指标共振' },
-    { title: '资金流向', icon: '💰', desc: '主力机构席位跟踪' },
-    { title: '市场情绪', icon: '🔥', desc: '热点题材热度分析' },
-    { title: '宏观政策', icon: '🏛️', desc: '行业导向影响评级' },
-    { title: '外围影响', icon: '🌍', desc: '全球市场联动对冲' },
-    { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警' },
-    { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议' },
+  const currentStock = stockList[0] || {
+    code: '600519', 
+    name: '贵州茅台', 
+    price: 1685.20, 
+    change_pct: 2.45
+  };
+
+  const hotSectors = [
+    { name: '半导体', change: 1.85, leader: '中芯国际' },
+    { name: '新能源', change: 0.5, leader: '比亚迪' },
+    { name: '人工智能', change: 2.3, leader: '科大讯飞' },
+    { name: '生物医药', change: -0.8, leader: '恒瑞医药' }
   ];
 
-  return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-700">
-      
-      {/* 1. 一键诊股入口 */}
-      <section className="bg-white/70 backdrop-blur-md rounded-[2rem] p-8 border border-slate-200 shadow-sm flex flex-col items-center">
-        <div className="w-full max-w-2xl flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
-          <input 
-            className="flex-1 bg-transparent px-6 outline-none text-slate-700 font-bold" 
-            placeholder="输入股票代码/名称..." 
-            value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value)}
-          />
-          <button className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all">GO</button>
-        </div>
-      </section>
+  const renderMarketStatus = () => {
+    if (!stockList?.length) return null;
+    
+    return (
+      <div className="market-status space-y-4">
+        {stockList.map((stock, idx) => (
+          <div key={idx} className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-slate-200 shadow-sm">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">
+                  {stock.name} <span className="text-sm text-slate-400">{stock.code}</span>
+                </h3>
+                <p className="text-2xl font-black mt-2">¥{stock.price}</p>
+              </div>
+              <div className={`text-xl font-bold ${stock.change_pct >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                {stock.change_pct >= 0 ? '+' : ''}{stock.change_pct}%
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
-      {/* 2. 【找回的部分】K线与盘口数据 */}
-      <div className="grid grid-cols-12 gap-6 h-[480px]">
-        {/* K线图区域 - 强化边界 */}
-        <div className="col-span-8 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+  const renderMarketSplit = () => {
+    return (
+      <div className="grid grid-cols-12 gap-6 h-[480px] market-split">
+        {/* 左侧：K线图区域 */}
+        <div className="col-span-8 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <span className="text-xl font-black text-slate-800">
               {currentStock.name} <span className="text-xs font-mono text-slate-400 ml-2">{currentStock.code}</span>
@@ -51,58 +93,75 @@ const DiagnosisPage = () => {
             </div>
           </div>
           <div className="flex-1 p-4 relative">
-             <KLineChart symbol={currentStock.code} />
+            <KLineChart symbol={currentStock.code} height="100%" />
           </div>
         </div>
 
-        {/* 盘口数据区域 - 强化边界 */}
-        <div className="col-span-4 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 flex flex-col justify-center relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">当前成交价</p>
-           <h3 className="text-6xl font-black text-slate-900 mb-6 tracking-tighter">¥{currentStock.price}</h3>
-           <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">当日涨跌</p>
-                <p className="text-xl font-black text-red-500">{currentStock.change}</p>
-              </div>
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">成交金额</p>
-                <p className="text-xl font-black text-slate-700">42.8亿</p>
-              </div>
-           </div>
+        {/* 右侧：热门板块 */}
+        <div className="col-span-4 space-y-4">
+          <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 className="section-title">今日热门板块</h3>
+            <div className="hot-sector-list">
+              {hotSectors.map((sector, idx) => (
+                <div key={idx} className="hot-sector-item">
+                  <div>
+                    <div className="hot-sector-name">{sector.name}</div>
+                    <div className="hot-sector-leader">龙头: {sector.leader}</div>
+                  </div>
+                  <div className={`hot-sector-change ${sector.change >= 0 ? 'positive' : 'negative'}`}>
+                    {sector.change >= 0 ? '+' : ''}{sector.change}%
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
+    );
+  };
 
-      {/* 3. 8维卡片矩阵 - 强化边缘(border-slate-200) */}
-      <section className="grid grid-cols-4 gap-6">
-        {dimensions.map((d, i) => (
-          <div key={i} className="group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center">
-            <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
-            <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
-            <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100">{d.desc}</p>
-            <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
-          </div>
+  const renderAIAnalysis = () => {
+    if (!stockList?.length) return null;
+    
+    return (
+      <div className="space-y-6">
+        {stockList.map((stock, idx) => (
+          <AIAccordion key={idx} stockCode={stock.code} />
         ))}
-      </section>
+      </div>
+    );
+  };
 
-      {/* 4. 底部决策条 - 全部改为中文 */}
-      <section className="bg-gradient-to-r from-[#2b5876] to-[#4e4376] rounded-[2.5rem] p-10 text-white shadow-2xl flex items-center justify-between relative overflow-hidden border border-white/10">
-        <div className="flex items-center gap-10 relative z-10">
-          <div className="text-center border-r border-white/20 pr-10">
-            <p className="text-[10px] font-bold text-blue-300 tracking-widest mb-1">AI 综合评分</p>
-            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">92</p>
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-3xl font-black flex items-center gap-3">建议积极买入 <span className="text-blue-300 text-sm font-light">高确定性机会</span></h4>
-            <p className="text-blue-100/60 text-xs max-w-xl italic">
-              综合多维深度数据，AI 检测到机构主力正在关键支撑位构建底仓，技术面呈现多头排列，建议择机入场。
-            </p>
-          </div>
-        </div>
-        <button className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-5 rounded-2xl font-bold hover:bg-white hover:text-[#4e4376] transition-all shadow-xl active:scale-95">
-           📄 一键生成诊断报告
-        </button>
-      </section>
+  const renderLoading = () => {
+    if (!loading && !isPageLoading) return null;
+    
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-slate-500">诊断分析中...</div>
+      </div>
+    );
+  };
+
+  const renderError = () => {
+    if (!error) return null;
+    
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-red-700">
+        {error}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex gap-6">
+      <div className="page-container diagnosis-page flex-1 space-y-6">
+        <SearchHero onSearch={triggerDiagnosis} loading={searchLoading || isPageLoading} />
+        {renderMarketStatus()}
+        {stockList?.length > 0 && renderMarketSplit()}
+        {renderLoading()}
+        {renderAIAnalysis()}
+        {renderError()}
+      </div>
     </div>
   );
 };
