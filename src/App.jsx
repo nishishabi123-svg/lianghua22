@@ -1,4 +1,4 @@
-import DiagnosisPage from './pages/DiagnosisPage';)
+import DiagnosisPage from './pages/DiagnosisPage';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
@@ -10,7 +10,6 @@ import SideNav from './components/SideNav';
 import CyberSearch from './components/CyberSearch';
 import GlobalLoading from './components/GlobalLoading';
 
-import DiagnosisPage from './pages/DiagnosisPage';
 import StrategyPage from './pages/StrategyPage';
 import VipPage from './pages/VipPage';
 import SettingsPage from './pages/SettingsPage';
