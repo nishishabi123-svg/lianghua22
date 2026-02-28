@@ -1,10 +1,6 @@
 import api from './index';
 
-// 核心决策接口
+// 统一路径规范，确保不重复拼接 /api
 export const getDiagnosis = (code) => api.get(`/api/stock_decision?code=${code}`);
-
-// K线接口
 export const getKLineData = (symbol) => api.get(`/api/stock_full_report?symbol=${symbol}`);
-
-// 兼容性导出：如果旧代码调 getQuote，自动转给 getDiagnosis
 export const getQuote = getDiagnosis;
