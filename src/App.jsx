@@ -24,17 +24,7 @@ import PaymentModal from './components/PaymentModal';
 
 
 function App() {
-  const {
-    stockData,
-    previousStockData,
-    loading,
-    error,
-    isMarketOpen,
-    currentStockCode,
-    setStockCode,
-    setAutoRefresh,
-    manualRefresh
-  } = useStockData(4000);
+ 
 
   const [refreshInterval, setRefreshInterval] = useState(4000);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
@@ -217,20 +207,14 @@ function App() {
   return (
 <ConfigProvider locale={zhCN}>
       <Router>
-        <div className="flex h-screen w-screen overflow-hidden bg-slate-50">
-          <aside className="w-64 flex-shrink-0 z-20 shadow-2xl">
-            <SideNav />
-          </aside>
-
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* 科技感 Header */}
-            <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center px-8 z-10 justify-between">
+        <div className="flex h-screen bg-[#f8fafd]">
+          <SideNav />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <header className="h-20 bg-white border-b flex items-center px-8 justify-between">
               <div className="flex-1 max-w-4xl">
                 <MarketTicker /> 
               </div>
-              
               <div className="flex items-center gap-6 ml-6">
-                {/* 状态呼吸灯 */}
                 <div className="flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -238,8 +222,7 @@ function App() {
                   </span>
                   <span className="text-[10px] font-bold text-slate-500 uppercase">Live Data</span>
                 </div>
-                
-                <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/20 transition-all active:scale-95">
+                <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/20">
                   登录中心
                 </button>
               </div>
@@ -248,7 +231,10 @@ function App() {
             <main className="flex-1 overflow-y-auto bg-[#f8fafd]">
               <div className="max-w-[1600px] mx-auto p-6">
                 <Routes>
-                  <Route path="/" element={<DiagnosisPage stockData={stockData} loading={loading} />} />
+                  {/* 3. 重点：不再向 DiagnosisPage 传递任何 props，让它自生自长 */}
+                  <Route path="/" element={<DiagnosisPage />} />
+                  <Route path="/strategy" element={<StrategyPage />} />
+                  {/* 其他路由保持不变 */}
                 </Routes>
               </div>
             </main>
@@ -256,7 +242,7 @@ function App() {
         </div>
       </Router>
     </ConfigProvider>
-    );
+  );
      }
 
 export default App;
