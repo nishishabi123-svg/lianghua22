@@ -1,24 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import KLineChart from '../components/KLineChart';
+import api from '../api';
 
 const DiagnosisPage = () => {
-  const [searchCode, setSearchCode] = useState('');
-  
-  // 模拟数据
-  const currentStock = { 
+  const [searchCode, setSearchCode] = useState('600519');
+  const [currentStock, setCurrentStock] = useState({ 
     code: '600519', name: '贵州茅台', price: 1685.20, change: '+2.45%'
+  });
+  const [dimensions, setDimensions] = useState([
+    { title: '基本面', icon: '📊', desc: '财务报表与盈利能力', score: 0 },
+    { title: '技术面', icon: '📈', desc: '量价形态与指标共振', score: 0 },
+    { title: '资金流向', icon: '💰', desc: '主力机构席位跟踪', score: 0 },
+    { title: '市场情绪', icon: '🔥', desc: '热点题材热度分析', score: 0 },
+    { title: '宏观政策', icon: '🏛️', desc: '行业导向影响评级', score: 0 },
+    { title: '外围影响', icon: '🌍', desc: '全球市场联动对冲', score: 0 },
+    { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警', score: 0 },
+    { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议', score: 0 },
+  ]);
+
+  const fetchStockData = async (symbol) => {
+    try {
+      const response = await api.get(`/api/stock_decision?symbol=${symbol}`);
+      if (response && response.ai_8_dimensions) {
+        const { fundamental, technical, capital, sentiment, policy, macro, risk, comprehensive } = response.ai_8_dimensions;
+        
+        setDimensions([
+          { title: '基本面', icon: '📊', desc: '财务报表与盈利能力', score: fundamental || 0 },
+          { title: '技术面', icon: '📈', desc: '量价形态与指标共振', score: technical || 0 },
+          { title: '资金流向', icon: '💰', desc: '主力机构席位跟踪', score: capital || 0 },
+          { title: '市场情绪', icon: '🔥', desc: '热点题材热度分析', score: sentiment || 0 },
+          { title: '宏观政策', icon: '🏛️', desc: '行业导向影响评级', score: policy || 0 },
+          { title: '外围影响', icon: '🌍', desc: '全球市场联动对冲', score: macro || 0 },
+          { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警', score: risk || 0 },
+          { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议', score: comprehensive || 0 },
+        ]);
+      }
+    } catch (error) {
+      console.error('获取股票决策数据失败:', error);
+    }
   };
 
-  const dimensions = [
-    { title: '基本面', icon: '📊', desc: '财务报表与盈利能力' },
-    { title: '技术面', icon: '📈', desc: '量价形态与指标共振' },
-    { title: '资金流向', icon: '💰', desc: '主力机构席位跟踪' },
-    { title: '市场情绪', icon: '🔥', desc: '热点题材热度分析' },
-    { title: '宏观政策', icon: '🏛️', desc: '行业导向影响评级' },
-    { title: '外围影响', icon: '🌍', desc: '全球市场联动对冲' },
-    { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警' },
-    { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议' },
-  ];
+  useEffect(() => {
+    fetchStockData('600519');
+  }, []);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-700">
@@ -79,6 +103,7 @@ const DiagnosisPage = () => {
           <div key={i} className="group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center">
             <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
             <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
+            <div className="text-3xl font-black text-[#4e4376] mb-2">{d.score}</div>
             <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100">{d.desc}</p>
             <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
           </div>

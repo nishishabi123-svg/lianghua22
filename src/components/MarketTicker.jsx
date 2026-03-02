@@ -15,9 +15,33 @@ const MarketTicker = () => {
 
   const fetchMarketPulse = useCallback(async () => {
     try {
-      const res = await api.get('/api/market_index');
-      if (res && res.data && res.data.indices) {
-        setMarketData(res.data);
+      // 先获取默认大盘数据
+      const marketRes = await api.get('/api/market_index');
+      if (marketRes && marketRes.data && marketRes.data.indices) {
+        setMarketData(marketRes);
+      }
+
+      // 再获取600519的macro_data并合并到大盘数据中
+      try {
+        const decisionRes = await api.get('/api/stock_decision?symbol=600519');
+        if (decisionRes && decisionRes.macro_data && Array.isArray(decisionRes.macro_data)) {
+          // 将macro_data转换为大盘指数格式并合并
+          const macroIndices = decisionRes.macro_data.map(item => ({
+            name: item.name || item.index || '宏观指标',
+            code: item.code || item.symbol || 'MACRO',
+            value: parseFloat(item.value || item.price || 0),
+            change: parseFloat(item.change || item.change_percent || 0),
+            trend: parseFloat(item.change || item.change_percent || 0) >= 0 ? 'up' : 'down'
+          }));
+
+          if (macroIndices.length > 0) {
+            setMarketData(prev => ({
+              indices: [...(prev?.indices || fallbackIndices), ...macroIndices]
+            }));
+          }
+        }
+      } catch (macroErr) {
+        console.warn('获取macro_data失败，仅使用大盘数据');
       }
     } catch (err) {
       console.error('获取大盘数据失败，使用备用数据');
