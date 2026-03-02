@@ -3,9 +3,10 @@ import * as echarts from 'echarts';
 import { Spin } from 'antd';
 import api from '../api';
 
-const KLineChart = ({ symbol, height = 400 }) => {
+const KLineChart = ({ symbol, height = 400, period = '日线' }) => {
   const [loading, setLoading] = useState(false);
   const [isMarketClosed, setIsMarketClosed] = useState(false);
+  const [currentPeriod, setCurrentPeriod] = useState('日线');
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
@@ -14,8 +15,8 @@ const KLineChart = ({ symbol, height = 400 }) => {
     setLoading(true);
     setIsMarketClosed(false);
     try {
-      // 使用新的实时行情接口 - 扁平化数据读取
-      const res = await api.get(`/api/stock_realtime?symbol=${encodeURIComponent(symbol)}`);
+      // 使用新的实时行情接口 - 扁平化数据读取，根据周期请求不同数据
+      const res = await api.get(`/api/stock_realtime?symbol=${encodeURIComponent(symbol)}&period=${currentPeriod}`);
       
       // 检查是否休市
       if (res.status === 'sleep') {
@@ -37,7 +38,7 @@ const KLineChart = ({ symbol, height = 400 }) => {
     } finally {
       setLoading(false);
     }
-  }, [symbol]);
+  }, [symbol, currentPeriod]);
 
   const renderChart = (dates, data) => {
     if (!chartInstance.current) chartInstance.current = echarts.init(chartRef.current);

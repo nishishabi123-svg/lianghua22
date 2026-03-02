@@ -83,6 +83,8 @@ const DiagnosisPage = () => {
       }
     } catch (error) {
       console.error('获取实时行情失败:', error);
+      // 显示用户友好的错误提示
+      alert(`实时行情加载失败，请检查网络连接或稍后重试`);
     }
     
     // 启动AI分析流B
@@ -126,6 +128,8 @@ const DiagnosisPage = () => {
       }
     } catch (error) {
       console.error('获取AI分析失败:', error);
+      // 显示用户友好的错误提示
+      alert(`AI分析失败，请检查网络连接或稍后重试`);
     } finally {
       setAiLoading(false);
     }
@@ -210,26 +214,34 @@ const DiagnosisPage = () => {
       </section>
 
       {/* 2. 【找回的部分】K线与盘口数据 */}
-      <div className="grid grid-cols-12 gap-6 h-[480px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 h-[320px] sm:h-[480px]">
         {/* K线图区域 - 强化边界 */}
-        <div className="col-span-8 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <span className="text-xl font-black text-slate-800">
+        <div className="col-span-1 lg:col-span-8 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="p-3 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50/50">
+            <span className="text-lg sm:text-xl font-black text-slate-800">
               {currentStock.name} <span className="text-xs font-mono text-slate-400 ml-2">{currentStock.code}</span>
             </span>
             <div className="flex bg-white p-1 rounded-lg border border-slate-200">
               {['分时', '日K', '周K'].map(t => (
-                <button key={t} className={`px-4 py-1 text-xs rounded ${t==='日K'?'bg-[#4e4376] text-white font-bold':'text-slate-400'}`}>{t}</button>
+                <button 
+                  key={t} 
+                  onClick={() => {
+                    setCurrentStock(prev => ({ ...prev, period: t }));
+                  }}
+                  className={`px-4 py-1 text-xs rounded ${t===(currentStock.period || '日线')?'bg-[#4e4376] text-white font-bold':'text-slate-400'}`}
+                >
+                  {t}
+                </button>
               ))}
             </div>
           </div>
-          <div className="flex-1 p-4 relative">
-             <KLineChart symbol={currentStock.code} />
+          <div className="flex-1 p-2 sm:p-4 relative">
+             <KLineChart symbol={currentStock.code} period={currentStock.period || '日线'} />
           </div>
         </div>
 
         {/* 盘口数据区域 - 强化边界 */}
-        <div className="col-span-4 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 flex flex-col justify-center relative overflow-hidden">
+        <div className="col-span-1 lg:col-span-4 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-4 sm:p-8 flex flex-col justify-center relative overflow-hidden">
            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">当前成交价</p>
            <div className="flex items-center gap-3 mb-6">
@@ -252,7 +264,7 @@ const DiagnosisPage = () => {
       </div>
 
       {/* 3. 8维卡片矩阵 - 折叠交互 */}
-      <section className="grid grid-cols-4 gap-6 relative">
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-3 lg:gap-6 relative">
         {aiLoading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-[2rem] z-10 flex items-center justify-center">
             <div className="text-center">
