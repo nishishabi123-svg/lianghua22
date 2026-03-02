@@ -13,38 +13,41 @@ const MarketTicker = () => {
   const [marketData, setMarketData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMarketPulse = useCallback(async () => {
+  const fetchMarketMarquee = useCallback(async () => {
     try {
-      // 先获取默认大盘数据
-      const marketRes = await api.get('/api/market_index');
-      if (marketRes && marketRes.data && marketRes.data.indices) {
-        setMarketData(marketRes);
-      }
-
-      // 再获取600519的macro_data并合并到大盘数据中
-      try {
-        const decisionRes = await api.get('/api/stock_decision?symbol=600519');
-        if (decisionRes && decisionRes.macro_data && Array.isArray(decisionRes.macro_data)) {
-          // 将macro_data转换为大盘指数格式并合并
-          const macroIndices = decisionRes.macro_data.map(item => ({
-            name: item.name || item.index || '宏观指标',
-            code: item.code || item.symbol || 'MACRO',
-            value: parseFloat(item.value || item.price || 0),
-            change: parseFloat(item.change || item.change_percent || 0),
-            trend: parseFloat(item.change || item.change_percent || 0) >= 0 ? 'up' : 'down'
-          }));
-
-          if (macroIndices.length > 0) {
-            setMarketData(prev => ({
-              indices: [...(prev?.indices || fallbackIndices), ...macroIndices]
-            }));
+      // 调用新的 /api/market_marquee 接口
+      const response = await api.get('/api/market_marquee');
+      
+      if (response) {
+        // 扁平化数据读取，直接获取 nasdaq, a50, shanghai
+        const indices = [
+          {
+            name: '纳斯达克',
+            code: 'NASDAQ',
+            value: response.nasdaq?.price || '--',
+            change: response.nasdaq?.change || 0,
+            trend: (response.nasdaq?.change || 0) >= 0 ? 'up' : 'down'
+          },
+          {
+            name: 'A50期指',
+            code: 'A50',
+            value: response.a50?.price || '--',
+            change: response.a50?.change || 0,
+            trend: (response.a50?.change || 0) >= 0 ? 'up' : 'down'
+          },
+          {
+            name: '上证指数',
+            code: 'SH000001',
+            value: response.shanghai?.price || '--',
+            change: response.shanghai?.change || 0,
+            trend: (response.shanghai?.change || 0) >= 0 ? 'up' : 'down'
           }
-        }
-      } catch (macroErr) {
-        console.warn('获取macro_data失败，仅使用大盘数据');
+        ];
+        
+        setMarketData({ indices });
       }
     } catch (err) {
-      console.error('获取大盘数据失败，使用备用数据');
+      console.error('获取大盘跑马灯数据失败，使用备用数据');
       setMarketData({ indices: fallbackIndices });
     } finally {
       setLoading(false);
@@ -52,10 +55,11 @@ const MarketTicker = () => {
   }, []);
 
   useEffect(() => {
-    fetchMarketPulse();
-    const interval = setInterval(fetchMarketPulse, 30000);
+    fetchMarketMarquee();
+    // 每30秒调用一次 /api/market_marquee
+    const interval = setInterval(fetchMarketMarquee, 30000);
     return () => clearInterval(interval);
-  }, [fetchMarketPulse]);
+  }, [fetchMarketMarquee]);
 
   // 确保数据翻倍以实现无缝滚动
   const marqueeItems = useMemo(() => {

@@ -14,7 +14,7 @@ const KLineChart = ({ symbol, height = 400 }) => {
     setLoading(true);
     setIsMarketClosed(false);
     try {
-      // 使用新的实时行情接口
+      // 使用新的实时行情接口 - 扁平化数据读取
       const res = await api.get(`/api/stock_realtime?symbol=${encodeURIComponent(symbol)}`);
       
       // 检查是否休市
@@ -23,13 +23,8 @@ const KLineChart = ({ symbol, height = 400 }) => {
         return;
       }
       
-      const payload = res?.data ?? res;
-      const raw =
-        payload?.kline_data ??
-        payload?.data?.kline_data ??
-        payload?.data?.data?.kline_data ??
-        payload?.kline ??
-        [];
+      // 直接读取扁平化数据，移除.data嵌套逻辑
+      const raw = res?.kline_data ?? [];
       const { dates, data } = normalizeKlineData(raw);
 
       if (data.length) {

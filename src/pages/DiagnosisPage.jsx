@@ -18,7 +18,7 @@ const DiagnosisPage = () => {
   const [searchCode, setSearchCode] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [currentStock, setCurrentStock] = useState({ 
-    code: '', name: '请输入股票代码', price: '--', change: '--'
+    code: '', name: '请输入股票代码', price: '--', change: '--', is_trading: true
   });
   const [dimensions, setDimensions] = useState([
     { title: '基本面', icon: '📊', desc: '等待诊断', score: 0 },
@@ -32,6 +32,7 @@ const DiagnosisPage = () => {
   ]);
   const [comprehensiveScore, setComprehensiveScore] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
+  const [advice, setAdvice] = useState({ type: 2, target_price: '--', message: '建议观望位：--' });
 
   // A股交易时间判断
   const isTradingTime = useCallback(() => {
@@ -55,40 +56,40 @@ const DiagnosisPage = () => {
     return false;
   }, []);
 
-  // 获取实时行情数据
-  const fetchRealtimeData = useCallback(async (symbol) => {
+  // 双流异步加载 - GO按钮处理
+  const handleGO = useCallback(async (symbol) => {
+    if (!symbol) return;
+    
+    // 流A：即时行情请求
+    const realtimePromise = api.get(`/api/stock_realtime?symbol=${symbol}`);
+    
+    // 流B：AI分析请求
+    const aiPromise = api.get(`/api/stock_decision?symbol=${symbol}`);
+    
     try {
-      const response = await api.get('/api/stock_realtime', { 
-        params: { symbol } 
-      });
-      
-      if (response) {
+      // 立即处理流A - 实时行情
+      const realtimeResponse = await realtimePromise;
+      if (realtimeResponse) {
         setCurrentStock({
-          code: response.symbol || symbol,
-          name: response.name || '未知股票',
-          price: response.price || '--',
-          change: response.change_percent || response.change || '--'
+          code: realtimeResponse.symbol || symbol,
+          name: realtimeResponse.name || '未知股票',
+          price: realtimeResponse.price || '--',
+          change: realtimeResponse.change_percent || realtimeResponse.change || '--',
+          is_trading: realtimeResponse.is_trading !== false
         });
       }
     } catch (error) {
       console.error('获取实时行情失败:', error);
     }
-  }, []);
-
-  // AI分析请求 - handleAnalyze函数
-  const handleAnalyze = useCallback(async (symbol) => {
-    if (!symbol) return;
     
+    // 启动AI分析流B
     setAiLoading(true);
     try {
-      const response = await api.get('/api/stock_decision', { 
-        params: { symbol } 
-      });
-      
-      if (response && response.ai_8_dimensions) {
-        const d = response.ai_8_dimensions;
+      const aiResponse = await aiPromise;
+      if (aiResponse && aiResponse.ai_8_dimensions) {
+        const d = aiResponse.ai_8_dimensions;
         
-        // 按fundamental到comprehensive的顺序映射8个维度
+        // 按 fundamental 到 comprehensive 的顺序映射8个维度
         const mapped = [
           { ...dimensions[0], score: d.fundamental?.score || 0, desc: d.fundamental?.desc || '财务报表与盈利能力' },
           { ...dimensions[1], score: d.technical?.score || 0, desc: d.technical?.desc || '量价形态与指标共振' },
@@ -100,20 +101,23 @@ const DiagnosisPage = () => {
           { ...dimensions[7], score: d.comprehensive?.score || 0, desc: d.comprehensive?.desc || 'AI全维度最终建议' },
         ];
         
-        // 这一步不写，页面永远是 0 分
         setDimensions(mapped);
-        
-        // 同步更新AI综合评分
         setComprehensiveScore(d.comprehensive?.score || 0);
         
-        // 更新当前股票信息
-        setCurrentStock(prev => ({
-          ...prev,
-          code: symbol,
-          name: response.name || prev.name,
-          price: response.price || prev.price,
-          change: response.change_percent || response.change || prev.change
-        }));
+        // 处理决策建议
+        const adviceType = aiResponse.advice_type || 2;
+        const targetPrice = aiResponse.target_price || '--';
+        const adviceMessages = {
+          1: `建议建仓位：${targetPrice}`,
+          2: `建议观望位：${targetPrice}`,
+          3: `建议平仓位：${targetPrice}`
+        };
+        
+        setAdvice({
+          type: adviceType,
+          target_price: targetPrice,
+          message: adviceMessages[adviceType] || adviceMessages[2]
+        });
       }
     } catch (error) {
       console.error('获取AI分析失败:', error);
@@ -132,53 +136,34 @@ const DiagnosisPage = () => {
   const selectSuggestion = (stock) => {
     setSearchCode(stock.code);
     setShowSuggestions(false);
-    fetchRealtimeData(stock.code);
-    setCurrentStock(prev => ({ 
-      ...prev, 
-      code: stock.code, 
-      name: stock.name 
-    }));
+    // 使用双流加载逻辑
+    handleGO(stock.code);
   };
 
-  // 搜索股票
+  // 搜索股票 - 使用双流加载
   const handleSearch = useCallback(() => {
     const code = searchCode.trim();
     if (!code) return;
     
     setShowSuggestions(false);
-    // 立即获取实时数据
-    fetchRealtimeData(code);
-    
-    // 设置为当前股票代码
-    setCurrentStock(prev => ({ ...prev, code }));
-  }, [searchCode, fetchRealtimeData]);
+    // 使用新的双流加载逻辑
+    handleGO(code);
+  }, [searchCode, handleGO]);
 
-  // 初始化和实时行情轮询
+  // 页面初始化时默认加载600519数据
   useEffect(() => {
-    // 默认加载600519的实时数据
-    fetchRealtimeData('600519');
-    
-    if (isTradingTime()) {
-      // 交易时段每30秒轮询一次
-      const interval = setInterval(() => {
-        if (currentStock.code) {
-          fetchRealtimeData(currentStock.code);
-        }
-      }, 30000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [fetchRealtimeData, isTradingTime, currentStock.code]);
+    handleGO('600519');
+  }, []);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-700">
       
       {/* 1. 一键诊股入口 */}
-      <section className="bg-white/70 backdrop-blur-md rounded-[2rem] p-8 border border-slate-200 shadow-sm flex flex-col items-center gap-4">
+      <section className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 border border-slate-200 shadow-sm flex flex-col items-center">
         <div className="w-full max-w-2xl relative">
-          <div className="flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+          <div className="flex p-1.2 bg-slate-100 rounded-2xl border border-slate-200">
             <input 
-              className="flex-1 bg-transparent px-6 outline-none text-slate-700 font-bold" 
+              className="flex-1 bg-transparent px-5 outline-none text-slate-700 font-bold" 
               placeholder="输入股票代码(如600519)或名称..." 
               value={searchCode}
               onChange={(e) => setSearchCode(e.target.value)}
@@ -210,22 +195,6 @@ const DiagnosisPage = () => {
             </div>
           )}
         </div>
-        <button 
-          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-12 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-          onClick={() => handleAnalyze(currentStock.code)}
-          disabled={!currentStock.code || currentStock.code === '' || aiLoading}
-        >
-          {aiLoading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              AI分析中...
-            </>
-          ) : (
-            <>
-              🤖 AI分析诊断
-            </>
-          )}
-        </button>
       </section>
 
       {/* 2. 【找回的部分】K线与盘口数据 */}
@@ -251,7 +220,12 @@ const DiagnosisPage = () => {
         <div className="col-span-4 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-8 flex flex-col justify-center relative overflow-hidden">
            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">当前成交价</p>
-           <h3 className="text-6xl font-black text-slate-900 mb-6 tracking-tighter">¥{currentStock.price}</h3>
+           <div className="flex items-center gap-3 mb-6">
+             <h3 className="text-6xl font-black text-slate-900 tracking-tighter">¥{currentStock.price}</h3>
+             {!currentStock.is_trading && (
+               <span className="text-sm text-gray-400 bg-gray-100 px-2 py-1 rounded-full">休市中</span>
+             )}
+           </div>
            <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">当日涨跌</p>
@@ -266,9 +240,17 @@ const DiagnosisPage = () => {
       </div>
 
       {/* 3. 8维卡片矩阵 - 强化边缘(border-slate-200) */}
-      <section className="grid grid-cols-4 gap-6">
+      <section className="grid grid-cols-4 gap-6 relative">
+        {aiLoading && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-[2rem] z-10 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3 mx-auto"></div>
+              <p className="text-sm text-slate-600 font-medium">正在进行8维度深度分析，预计15秒...</p>
+            </div>
+          </div>
+        )}
         {dimensions.map((d, i) => (
-          <div key={i} className="group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center">
+          <div key={i} className={`group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center ${aiLoading ? 'opacity-30' : ''}`}>
             <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
             <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
             <div className="text-3xl font-black text-[#4e4376] mb-2">{d.score}</div>
@@ -278,23 +260,39 @@ const DiagnosisPage = () => {
         ))}
       </section>
 
-      {/* 4. 底部决策条 - 全部改为中文 */}
-      <section className="bg-gradient-to-r from-[#2b5876] to-[#4e4376] rounded-[2.5rem] p-10 text-white shadow-2xl flex items-center justify-between relative overflow-hidden border border-white/10">
+      {/* 4. 底部决策条 - advice_type逻辑映射 */}
+      <section className={`rounded-[2.5rem] p-10 text-white shadow-2xl flex items-center justify-between relative overflow-hidden border border-white/10 ${
+        advice.type === 1 ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
+        advice.type === 2 ? 'bg-gradient-to-r from-gray-600 to-gray-500' :
+        advice.type === 3 ? 'bg-gradient-to-r from-red-600 to-red-500' :
+        'bg-gradient-to-r from-gray-600 to-gray-500'
+      }`}>
         <div className="flex items-center gap-10 relative z-10">
           <div className="text-center border-r border-white/20 pr-10">
-            <p className="text-[10px] font-bold text-blue-300 tracking-widest mb-1">AI 综合评分</p>
-            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">
+            <p className="text-[10px] font-bold opacity-80 tracking-widest mb-1">AI 综合评分</p>
+            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-opacity-80">
               {comprehensiveScore || '--'}
             </p>
           </div>
           <div className="space-y-1">
-            <h4 className="text-3xl font-black flex items-center gap-3">建议积极买入 <span className="text-blue-300 text-sm font-light">高确定性机会</span></h4>
-            <p className="text-blue-100/60 text-xs max-w-xl italic">
-              综合多维深度数据，AI 检测到机构主力正在关键支撑位构建底仓，技术面呈现多头排列，建议择机入场。
+            <h4 className="text-3xl font-black flex items-center gap-3">
+              {advice.message} 
+              <span className="text-sm font-light opacity-80">
+                {advice.type === 1 ? '高确定性机会' :
+                 advice.type === 2 ? '耐心等待时机' :
+                 advice.type === 3 ? '风险控制优先' :
+                 '市场观望'}
+              </span>
+            </h4>
+            <p className="opacity-80 text-xs max-w-xl italic">
+              综合多维深度数据，AI 检测到{advice.type === 1 ? '机构主力正在关键支撑位构建底仓，技术面呈现多头排列，建议择机入场。' :
+                                            advice.type === 2 ? '市场处于震荡调整阶段，建议耐心等待更好的入场时机。' :
+                                            advice.type === 3 ? '风险因素累积，建议及时止盈止损，控制风险。' :
+                                            '市场暂无明显趋势，建议谨慎观望。'}
             </p>
           </div>
         </div>
-        <div className="text-4xl font-black text-white/10 absolute right-10 top-1/2 -translate-y-1/2">TRADE</div>
+        <div className="text-4xl font-black opacity-10 absolute right-10 top-1/2 -translate-y-1/2">TRADE</div>
       </section>
     </div>
   );
