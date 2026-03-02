@@ -23,9 +23,9 @@ const MarketTicker = () => {
         
         // 直接点对点映射，最暴力的方式
         const mapped = [
-          { name: '纳指', code: 'IXIC', value: Number(res.nasdaq.price), change: parseFloat(res.nasdaq.change) },
-          { name: 'A50', code: 'A50', value: Number(res.a50.price), change: parseFloat(res.a50.change) },
-          { name: '上证', code: '000001', value: Number(res.shanghai.price), change: parseFloat(res.shanghai.change) }
+          { name: '纳指', code: 'IXIC', value: res.nasdaq.price, change: parseFloat(res.nasdaq.change) },
+          { name: 'A50', code: 'A50', value: res.a50.price, change: parseFloat(res.a50.change) },
+          { name: '上证', code: '000001', value: res.shanghai.price, change: parseFloat(res.shanghai.change) }
         ];
         setMarketData({ indices: mapped });
       }
@@ -68,7 +68,7 @@ const MarketTicker = () => {
           <div key={`${item.code}-${idx}`} className="ticker-item">
             <span className="ticker-name">{item.name}</span>
             <span className={`ticker-value ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
-              {Number(item.value || 0).toFixed(2)}
+              {item.value ? Number(item.value).toFixed(2) : '--'}
             </span>
             <span className={`ticker-change ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
               {item.change >= 0 ? '▲' : '▼'}{Math.abs(Number(item.change) || 0).toFixed(2)}%

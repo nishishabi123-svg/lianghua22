@@ -6,17 +6,17 @@ import api from '../api';
 const KLineChart = ({ symbol, height = 400, period = '日线' }) => {
   const [loading, setLoading] = useState(false);
   const [isMarketClosed, setIsMarketClosed] = useState(false);
-  const [currentPeriod, setCurrentPeriod] = useState('日线');
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
   const fetchData = useCallback(async () => {
-    if (!symbol || symbol === '000000') return;
+    if (!symbol) return;
+    if (symbol === '000000') return;
     setLoading(true);
     setIsMarketClosed(false);
     try {
-      // 使用新的实时行情接口 - 扁平化数据读取，根据周期请求不同数据
-      const res = await api.get(`/api/stock_realtime?symbol=${encodeURIComponent(symbol)}&period=${currentPeriod}`);
+      const res = await api.get(`/api/stock_realtime?symbol=${encodeURIComponent(symbol)}`);
+      console.log('K线接口返回:', res);
       
       // 检查是否休市
       if (res.status === 'sleep') {
@@ -38,7 +38,7 @@ const KLineChart = ({ symbol, height = 400, period = '日线' }) => {
     } finally {
       setLoading(false);
     }
-  }, [symbol, currentPeriod]);
+  }, [symbol]);
 
   const renderChart = (dates, data) => {
     if (!chartInstance.current) chartInstance.current = echarts.init(chartRef.current);

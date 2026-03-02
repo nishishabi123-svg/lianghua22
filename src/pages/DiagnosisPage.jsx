@@ -160,10 +160,11 @@ const DiagnosisPage = () => {
   const handleSearch = useCallback(() => {
     const code = searchCode.trim();
     if (!code) return;
-    
+
+    setSearchCode(code);
     setShowSuggestions(false);
-    // 使用AI诊断逻辑
     fetchAIDiagnosis(code);
+    setCurrentStock(prev => ({ ...prev, code }));
   }, [searchCode, fetchAIDiagnosis]);
 
   // 页面初始化时默认加载600519数据
