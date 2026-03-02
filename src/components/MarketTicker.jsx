@@ -83,4 +83,3 @@ const MarketTicker = () => {
     setLoading(false);
   }
 }, []);
-export default MarketTicker;
