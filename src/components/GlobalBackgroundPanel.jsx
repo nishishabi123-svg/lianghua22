@@ -86,7 +86,7 @@ const GlobalBackgroundPanel = ({ stockCode, stockData }) => {
             previousValue={0}
           />
           <span className="change-percent">
-            ({isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%)
+            ({isPositive ? '+' : ''}{Number(data.changePercent || 0).toFixed(2)}%)
           </span>
         </div>
       </div>

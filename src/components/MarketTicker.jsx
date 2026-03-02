@@ -15,36 +15,17 @@ const MarketTicker = () => {
 
   const fetchMarketMarquee = useCallback(async () => {
     try {
-      // 调用新的 /api/market_marquee 接口
-      const response = await api.get('/api/market_marquee');
+      // 后端直接返回对象，不需要.data嵌套
+      const res = await api.get('/api/market_marquee');
       
-      if (response) {
-        // 扁平化数据读取，直接获取 nasdaq, a50, shanghai
-        const indices = [
-          {
-            name: '纳斯达克',
-            code: 'NASDAQ',
-            value: response.nasdaq?.price || '--',
-            change: response.nasdaq?.change || 0,
-            trend: (response.nasdaq?.change || 0) >= 0 ? 'up' : 'down'
-          },
-          {
-            name: 'A50期指',
-            code: 'A50',
-            value: response.a50?.price || '--',
-            change: response.a50?.change || 0,
-            trend: (response.a50?.change || 0) >= 0 ? 'up' : 'down'
-          },
-          {
-            name: '上证指数',
-            code: 'SH000001',
-            value: response.shanghai?.price || '--',
-            change: response.shanghai?.change || 0,
-            trend: (response.shanghai?.change || 0) >= 0 ? 'up' : 'down'
-          }
+      if (res) {
+        // 直接解构对象并映射
+        const mapped = [
+          { name: '纳指', ...res.nasdaq },
+          { name: 'A50', ...res.a50 },
+          { name: '上证', ...res.shanghai }
         ];
-        
-        setMarketData({ indices });
+        setMarketData({ indices: mapped });
       }
     } catch (err) {
       console.error('获取大盘跑马灯数据失败，使用备用数据');

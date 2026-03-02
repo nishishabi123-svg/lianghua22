@@ -93,7 +93,8 @@ const DiagnosisPage = () => {
       if (aiResponse && aiResponse.ai_8_dimensions) {
         const d = aiResponse.ai_8_dimensions;
         
-        // 按映射关系：fundamental->基本面, capital->资金面 等
+        // 对齐后端key值：fundamental, technical, capital, sentiment, policy, macro, risk, comprehensive
+        // 移除所有.data嵌套，直接读取res.ai_8_dimensions.*
         const mapped = [
           { ...dimensions[0], score: Number(d.fundamental?.score || 0), desc: d.fundamental?.desc || '财务报表与盈利能力', fullDesc: d.fundamental?.desc || '财务报表与盈利能力' },
           { ...dimensions[1], score: Number(d.technical?.score || 0), desc: d.technical?.desc || '量价形态与指标共振', fullDesc: d.technical?.desc || '量价形态与指标共振' },

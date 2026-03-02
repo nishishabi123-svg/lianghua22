@@ -202,7 +202,7 @@ const CyberChart = ({ data, title = "分时图", height = 400 }) => {
               if (num >= 1000) {
                 return (num / 1000).toFixed(1) + 'k';
               }
-              return num.toFixed(0);
+              return num.toFixed(1);
             }
           },
           splitLine: {
