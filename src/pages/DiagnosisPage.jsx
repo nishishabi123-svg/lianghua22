@@ -21,14 +21,14 @@ const DiagnosisPage = () => {
     code: '', name: '请输入股票代码', price: '--', change: '--', is_trading: true
   });
   const [dimensions, setDimensions] = useState([
-    { title: '基本面', icon: '📊', desc: '等待诊断', score: 0 },
-    { title: '技术面', icon: '📈', desc: '等待诊断', score: 0 },
-    { title: '资金流向', icon: '💰', desc: '等待诊断', score: 0 },
-    { title: '市场情绪', icon: '🔥', desc: '等待诊断', score: 0 },
-    { title: '宏观政策', icon: '🏛️', desc: '等待诊断', score: 0 },
-    { title: '外围影响', icon: '🌍', desc: '等待诊断', score: 0 },
-    { title: '风险探测', icon: '⚠️', desc: '等待诊断', score: 0 },
-    { title: '综合结论', icon: '🧠', desc: '等待诊断', score: 0 },
+    { title: '基本面', icon: '📊', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '技术面', icon: '📈', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '资金流向', icon: '💰', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '市场情绪', icon: '🔥', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '宏观政策', icon: '🏛️', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '外围影响', icon: '🌍', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '风险探测', icon: '⚠️', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
+    { title: '综合结论', icon: '🧠', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
   ]);
   const [comprehensiveScore, setComprehensiveScore] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
@@ -56,9 +56,12 @@ const DiagnosisPage = () => {
     return false;
   }, []);
 
-  // 双流异步加载 - GO按钮处理
-  const handleGO = useCallback(async (symbol) => {
+  // AI诊断函数 - fetchAIDiagnosis
+  const fetchAIDiagnosis = useCallback(async (symbol) => {
     if (!symbol) return;
+    
+    // 按下GO时，将isAnalyzing设为true
+    setAiLoading(true);
     
     // 流A：即时行情请求
     const realtimePromise = api.get(`/api/stock_realtime?symbol=${symbol}`);
@@ -83,26 +86,27 @@ const DiagnosisPage = () => {
     }
     
     // 启动AI分析流B
-    setAiLoading(true);
     try {
       const aiResponse = await aiPromise;
+      
+      // 扁平化读取，移除.data嵌套
       if (aiResponse && aiResponse.ai_8_dimensions) {
         const d = aiResponse.ai_8_dimensions;
         
-        // 按 fundamental 到 comprehensive 的顺序映射8个维度
+        // 按映射关系：fundamental->基本面, capital->资金面 等
         const mapped = [
-          { ...dimensions[0], score: d.fundamental?.score || 0, desc: d.fundamental?.desc || '财务报表与盈利能力' },
-          { ...dimensions[1], score: d.technical?.score || 0, desc: d.technical?.desc || '量价形态与指标共振' },
-          { ...dimensions[2], score: d.capital?.score || 0, desc: d.capital?.desc || '主力机构席位跟踪' },
-          { ...dimensions[3], score: d.sentiment?.score || 0, desc: d.sentiment?.desc || '热点题材热度分析' },
-          { ...dimensions[4], score: d.policy?.score || 0, desc: d.policy?.desc || '行业导向影响评级' },
-          { ...dimensions[5], score: d.macro?.score || 0, desc: d.macro?.desc || '全球市场联动对冲' },
-          { ...dimensions[6], score: d.risk?.score || 0, desc: d.risk?.desc || '股权质押等隐患预警' },
-          { ...dimensions[7], score: d.comprehensive?.score || 0, desc: d.comprehensive?.desc || 'AI全维度最终建议' },
+          { ...dimensions[0], score: Number(d.fundamental?.score || 0), desc: d.fundamental?.desc || '财务报表与盈利能力', fullDesc: d.fundamental?.desc || '财务报表与盈利能力' },
+          { ...dimensions[1], score: Number(d.technical?.score || 0), desc: d.technical?.desc || '量价形态与指标共振', fullDesc: d.technical?.desc || '量价形态与指标共振' },
+          { ...dimensions[2], score: Number(d.capital?.score || 0), desc: d.capital?.desc || '主力机构席位跟踪', fullDesc: d.capital?.desc || '主力机构席位跟踪' },
+          { ...dimensions[3], score: Number(d.sentiment?.score || 0), desc: d.sentiment?.desc || '热点题材热度分析', fullDesc: d.sentiment?.desc || '热点题材热度分析' },
+          { ...dimensions[4], score: Number(d.policy?.score || 0), desc: d.policy?.desc || '行业导向影响评级', fullDesc: d.policy?.desc || '行业导向影响评级' },
+          { ...dimensions[5], score: Number(d.macro?.score || 0), desc: d.macro?.desc || '全球市场联动对冲', fullDesc: d.macro?.desc || '全球市场联动对冲' },
+          { ...dimensions[6], score: Number(d.risk?.score || 0), desc: d.risk?.desc || '股权质押等隐患预警', fullDesc: d.risk?.desc || '股权质押等隐患预警' },
+          { ...dimensions[7], score: Number(d.comprehensive?.score || 0), desc: d.comprehensive?.desc || 'AI全维度最终建议', fullDesc: d.comprehensive?.desc || 'AI全维度最终建议' },
         ];
         
         setDimensions(mapped);
-        setComprehensiveScore(d.comprehensive?.score || 0);
+        setComprehensiveScore(Number(d.comprehensive?.score || 0));
         
         // 处理决策建议
         const adviceType = aiResponse.advice_type || 2;
@@ -126,6 +130,13 @@ const DiagnosisPage = () => {
     }
   }, [dimensions]);
 
+  // 卡片折叠切换
+  const toggleCardExpansion = useCallback((index) => {
+    setDimensions(prev => prev.map((dim, i) => 
+      i === index ? { ...dim, expanded: !dim.expanded } : dim
+    ));
+  }, []);
+
   // 过滤搜索建议
   const filteredSuggestions = stockSuggestions.filter(stock => 
     stock.code.includes(searchCode.toUpperCase()) || 
@@ -136,8 +147,8 @@ const DiagnosisPage = () => {
   const selectSuggestion = (stock) => {
     setSearchCode(stock.code);
     setShowSuggestions(false);
-    // 使用双流加载逻辑
-    handleGO(stock.code);
+    // 使用AI诊断逻辑
+    fetchAIDiagnosis(stock.code);
   };
 
   // 搜索股票 - 使用双流加载
@@ -146,13 +157,13 @@ const DiagnosisPage = () => {
     if (!code) return;
     
     setShowSuggestions(false);
-    // 使用新的双流加载逻辑
-    handleGO(code);
-  }, [searchCode, handleGO]);
+    // 使用AI诊断逻辑
+    fetchAIDiagnosis(code);
+  }, [searchCode, fetchAIDiagnosis]);
 
   // 页面初始化时默认加载600519数据
   useEffect(() => {
-    handleGO('600519');
+    fetchAIDiagnosis('600519');
   }, []);
 
   return (
@@ -239,23 +250,44 @@ const DiagnosisPage = () => {
         </div>
       </div>
 
-      {/* 3. 8维卡片矩阵 - 强化边缘(border-slate-200) */}
+      {/* 3. 8维卡片矩阵 - 折叠交互 */}
       <section className="grid grid-cols-4 gap-6 relative">
         {aiLoading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-[2rem] z-10 flex items-center justify-center">
             <div className="text-center">
               <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3 mx-auto"></div>
-              <p className="text-sm text-slate-600 font-medium">正在进行8维度深度分析，预计15秒...</p>
+              <p className="text-sm text-slate-600 font-medium">AI正在调取8维度深度数据，请稍候...</p>
             </div>
           </div>
         )}
         {dimensions.map((d, i) => (
-          <div key={i} className={`group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center ${aiLoading ? 'opacity-30' : ''}`}>
-            <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
-            <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
-            <div className="text-3xl font-black text-[#4e4376] mb-2">{Number(d.score || 0).toFixed(1)}</div>
-            <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100">{d.desc}</p>
-            <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
+          <div 
+            key={i} 
+            onClick={() => toggleCardExpansion(i)}
+            className={`group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${aiLoading ? 'opacity-30' : ''} ${
+              d.expanded ? 'row-span-2 col-span-2' : ''
+            }`}
+          >
+            {!d.expanded ? (
+              // 展开状态：显示详细分析文本
+              <div className="w-full h-full flex flex-col justify-center">
+                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
+                <h4 className="font-black text-slate-700 text-lg mb-2">{d.title}</h4>
+                <div className="text-2xl font-black text-[#4e4376] mb-3">{Number(d.score || 0).toFixed(1)}</div>
+                <p className="text-sm text-slate-600 leading-relaxed bg-white/50 p-4 rounded-xl">
+                  {d.fullDesc || d.desc}
+                </p>
+              </div>
+            ) : (
+              // 收缩状态：只显示核心信息
+              <>
+                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
+                <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
+                <div className="text-3xl font-black text-[#4e4376] mb-2">{Number(d.score || 0).toFixed(1)}</div>
+                <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100 line-clamp-1">{d.desc}</p>
+                <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
+              </>
+            )}
           </div>
         ))}
       </section>
