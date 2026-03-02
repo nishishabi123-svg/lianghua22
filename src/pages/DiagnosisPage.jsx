@@ -1,24 +1,84 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import KLineChart from '../components/KLineChart';
 import api from '../api';
 
+// 常用股票代码建议
+const stockSuggestions = [
+  { code: '600519', name: '贵州茅台' },
+  { code: '000001', name: '平安银行' },
+  { code: '000002', name: '万科A' },
+  { code: '000858', name: '五粮液' },
+  { code: '002415', name: '海康威视' },
+  { code: '300059', name: '东方财富' },
+  { code: '601318', name: '中国平安' },
+  { code: '600036', name: '招商银行' },
+];
+
 const DiagnosisPage = () => {
-  const [searchCode, setSearchCode] = useState('600519');
+  const [searchCode, setSearchCode] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [currentStock, setCurrentStock] = useState({ 
-    code: '600519', name: '贵州茅台', price: 1685.20, change: '+2.45%'
+    code: '', name: '请输入股票代码', price: '--', change: '--'
   });
   const [dimensions, setDimensions] = useState([
-    { title: '基本面', icon: '📊', desc: '财务报表与盈利能力', score: 0 },
-    { title: '技术面', icon: '📈', desc: '量价形态与指标共振', score: 0 },
-    { title: '资金流向', icon: '💰', desc: '主力机构席位跟踪', score: 0 },
-    { title: '市场情绪', icon: '🔥', desc: '热点题材热度分析', score: 0 },
-    { title: '宏观政策', icon: '🏛️', desc: '行业导向影响评级', score: 0 },
-    { title: '外围影响', icon: '🌍', desc: '全球市场联动对冲', score: 0 },
-    { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警', score: 0 },
-    { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议', score: 0 },
+    { title: '基本面', icon: '📊', desc: '等待诊断', score: 0 },
+    { title: '技术面', icon: '📈', desc: '等待诊断', score: 0 },
+    { title: '资金流向', icon: '💰', desc: '等待诊断', score: 0 },
+    { title: '市场情绪', icon: '🔥', desc: '等待诊断', score: 0 },
+    { title: '宏观政策', icon: '🏛️', desc: '等待诊断', score: 0 },
+    { title: '外围影响', icon: '🌍', desc: '等待诊断', score: 0 },
+    { title: '风险探测', icon: '⚠️', desc: '等待诊断', score: 0 },
+    { title: '综合结论', icon: '🧠', desc: '等待诊断', score: 0 },
   ]);
+  const [aiLoading, setAiLoading] = useState(false);
 
-  const fetchStockData = async (symbol) => {
+  // A股交易时间判断
+  const isTradingTime = useCallback(() => {
+    const now = new Date();
+    const day = now.getDay(); // 0是周日，6是周六
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    // 周末不交易
+    if (day === 0 || day === 6) return false;
+    
+    // 上午交易时间：9:30-11:30
+    if (hour === 9 && minute >= 30) return true;
+    if (hour === 10 || hour === 11) return true;
+    if (hour === 11 && minute <= 30) return true;
+    
+    // 下午交易时间：13:00-15:00
+    if (hour === 13 || hour === 14) return true;
+    if (hour === 15 && minute === 0) return true;
+    
+    return false;
+  }, []);
+
+  // 获取实时行情数据
+  const fetchRealtimeData = useCallback(async (symbol) => {
+    try {
+      const response = await api.get('/api/stock_realtime', { 
+        params: { symbol } 
+      });
+      
+      if (response) {
+        setCurrentStock({
+          code: response.symbol || symbol,
+          name: response.name || '未知股票',
+          price: response.price || '--',
+          change: response.change_percent || response.change || '--'
+        });
+      }
+    } catch (error) {
+      console.error('获取实时行情失败:', error);
+    }
+  }, []);
+
+  // AI分析请求
+  const fetchAIAnalysis = useCallback(async (symbol) => {
+    if (!symbol) return;
+    
+    setAiLoading(true);
     try {
       const response = await api.get('/api/stock_decision', { 
         params: { symbol } 
@@ -38,47 +98,113 @@ const DiagnosisPage = () => {
           { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议', score: comprehensive || 0 },
         ]);
       }
-      
-      // 更新 currentStock 状态
-      if (response && response.symbol) {
-        setCurrentStock(prev => ({
-          ...prev,
-          code: response.symbol || prev.code,
-          name: response.name || prev.name,
-          price: response.price || prev.price,
-          change: response.change || prev.change
-        }));
-      }
     } catch (error) {
-      console.error('获取股票决策数据失败:', error);
+      console.error('获取AI分析失败:', error);
+    } finally {
+      setAiLoading(false);
     }
+  }, []);
+
+  // 过滤搜索建议
+  const filteredSuggestions = stockSuggestions.filter(stock => 
+    stock.code.includes(searchCode.toUpperCase()) || 
+    stock.name.includes(searchCode)
+  );
+
+  // 选择建议项
+  const selectSuggestion = (stock) => {
+    setSearchCode(stock.code);
+    setShowSuggestions(false);
+    fetchRealtimeData(stock.code);
+    setCurrentStock(prev => ({ ...prev, code: stock.code, name: stock.name }));
   };
 
+  // 搜索股票
+  const handleSearch = useCallback(() => {
+    const code = searchCode.trim();
+    if (!code) return;
+    
+    setShowSuggestions(false);
+    // 立即获取实时数据
+    fetchRealtimeData(code);
+    
+    // 设置为当前股票代码
+    setCurrentStock(prev => ({ ...prev, code }));
+  }, [searchCode, fetchRealtimeData]);
+
+  // 初始化和实时行情轮询
   useEffect(() => {
-    fetchStockData('600519');
-  }, []);
+    // 默认加载600519的实时数据
+    fetchRealtimeData('600519');
+    
+    if (isTradingTime()) {
+      // 交易时段每30秒轮询一次
+      const interval = setInterval(() => {
+        if (currentStock.code) {
+          fetchRealtimeData(currentStock.code);
+        }
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [fetchRealtimeData, isTradingTime, currentStock.code]);
 
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-700">
       
       {/* 1. 一键诊股入口 */}
-      <section className="bg-white/70 backdrop-blur-md rounded-[2rem] p-8 border border-slate-200 shadow-sm flex flex-col items-center">
-        <div className="w-full max-w-2xl flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
-          <input 
-            className="flex-1 bg-transparent px-6 outline-none text-slate-700 font-bold" 
-            placeholder="输入股票代码/名称..." 
-            value={searchCode}
-            onChange={(e) => setSearchCode(e.target.value)}
-          />
-          <button 
-            className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all"
-            onClick={() => {
-              if (searchCode.trim()) {
-                fetchStockData(searchCode.trim());
-              }
-            }}
-          >GO</button>
+      <section className="bg-white/70 backdrop-blur-md rounded-[2rem] p-8 border border-slate-200 shadow-sm flex flex-col items-center gap-4">
+        <div className="w-full max-w-2xl relative">
+          <div className="flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+            <input 
+              className="flex-1 bg-transparent px-6 outline-none text-slate-700 font-bold" 
+              placeholder="输入股票代码(如600519)或名称..." 
+              value={searchCode}
+              onChange={(e) => setSearchCode(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <button 
+              className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all"
+              onClick={handleSearch}
+            >GO</button>
+          </div>
+          
+          {/* 搜索建议下拉框 */}
+          {showSuggestions && searchCode && filteredSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-lg z-10 max-h-60 overflow-y-auto">
+              {filteredSuggestions.map((stock, index) => (
+                <div
+                  key={index}
+                  className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors"
+                  onClick={() => selectSuggestion(stock)}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-mono text-sm text-slate-600">{stock.code}</span>
+                    <span className="text-sm text-slate-800 font-medium">{stock.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+        <button 
+          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-12 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+          onClick={() => fetchAIAnalysis(currentStock.code)}
+          disabled={!currentStock.code || currentStock.code === '' || aiLoading}
+        >
+          {aiLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              AI分析中...
+            </>
+          ) : (
+            <>
+              🤖 AI分析诊断
+            </>
+          )}
+        </button>
       </section>
 
       {/* 2. 【找回的部分】K线与盘口数据 */}
