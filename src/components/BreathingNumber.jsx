@@ -50,7 +50,7 @@ const BreathingNumber = ({
 
   const formatNumber = (num) => {
     if (num === null || num === undefined) return '--';
-    return typeof num === 'number' ? num.toFixed(precision) : num;
+    return typeof num === 'number' ? num.toFixed(precision) : (Number(num) || 0).toFixed(precision);
   };
 
   const trendClasses = {

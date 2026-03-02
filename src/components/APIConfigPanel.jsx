@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import CyberCard from './CyberCard';
-import { getAPIKeyStatus, configureAPIKeys, getAIModels, MODEL_PRIORITY } from '../api/ai';
+import { getAPIKeyStatus, configureAPIKeys, getAIModels } from '../api/ai';
 
 const APIConfigPanel = ({ onConfigChange }) => {
   const [apiKeys, setApiKeys] = useState({
@@ -118,7 +118,7 @@ const APIConfigPanel = ({ onConfigChange }) => {
           <div className="model-info">
             <h4 className="model-name">{modelInfo.name}</h4>
             <p className="model-desc">
-              成本: ¥{(modelInfo.cost * 1000).toFixed(2)}/千tokens | 
+              成本: ¥{Number(modelInfo.cost * 1000 || 0).toFixed(2)}/千tokens | 
               最大Token: {modelInfo.maxTokens}
             </p>
           </div>

@@ -39,13 +39,13 @@ const PriceDisplay = ({
     <div className={`price-display ${sizeClasses[size]} ${className}`} {...props}>
       {label && <div className="data-label">{label}</div>}
       <div className={`price-value ${isFlashing ? 'price-flash' : ''}`}>
-        ¥{currentPrice?.toFixed(2) || '--'}
+        ¥{Number(currentPrice)?.toFixed(2) || '--'}
       </div>
       {showChange && previousPrice !== null && (
         <div className={`price-change ${isPositive ? 'positive' : 'negative'}`}>
           {isPositive ? '↑' : '↓'} 
-          {Math.abs(change).toFixed(2)} 
-          ({isPositive ? '+' : ''}{changePercent.toFixed(2)}%)
+          {Math.abs(Number(change) || 0).toFixed(2)} 
+          ({isPositive ? '+' : ''}{Number(changePercent) || 0).toFixed(2)}%)
         </div>
       )}
     </div>

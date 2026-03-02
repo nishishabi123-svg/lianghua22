@@ -23,7 +23,7 @@ const DecisionCard = ({ stockData, isVip }) => {
     return 'AI 正在生成核心结论。';
   }, [analysis]);
 
-  const changeValue = Number(change);
+  const changeValue = Number(change) || 0;
   const changeDisplay = Number.isNaN(changeValue) ? '--' : `${changeValue >= 0 ? '+' : ''}${changeValue.toFixed(2)}%`;
 
   useEffect(() => {

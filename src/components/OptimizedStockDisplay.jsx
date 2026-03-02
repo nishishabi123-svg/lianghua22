@@ -15,7 +15,7 @@ const OptimizedStockDisplay = memo(({ stockData, previousData }) => {
       } else if (hands >= 1000) {
         return `${(hands / 1000).toFixed(1)}千手`;
       } else {
-        return `${hands.toFixed(0)}手`;
+        return `${Number(hands || 0).toFixed(0)}手`;
       }
     };
 
@@ -93,7 +93,7 @@ const OptimizedStockDisplay = memo(({ stockData, previousData }) => {
           <div className="quote-item">
             <div className="data-label">涨跌幅</div>
             <div className={`data-value change-value ${formattedData.status}`}>
-              {formattedData.priceChangePercent >= 0 ? '+' : ''}{formattedData.priceChangePercent.toFixed(2)}%
+              {formattedData.priceChangePercent >= 0 ? '+' : ''}{Number(formattedData.priceChangePercent || 0).toFixed(2)}%
             </div>
           </div>
         </div>

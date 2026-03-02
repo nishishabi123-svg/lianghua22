@@ -198,10 +198,11 @@ const CyberChart = ({ data, title = "分时图", height = 400 }) => {
           axisLabel: {
             color: 'rgba(91, 107, 140, 0.9)',
             formatter: function(value) {
-              if (value >= 1000) {
-                return (value / 1000).toFixed(1) + 'k';
+              const num = Number(value) || 0;
+              if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'k';
               }
-              return value.toFixed(0);
+              return num.toFixed(0);
             }
           },
           splitLine: {

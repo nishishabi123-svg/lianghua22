@@ -85,10 +85,10 @@ const MarketTicker = () => {
           <div key={`${item.code}-${idx}`} className="ticker-item">
             <span className="ticker-name">{item.name}</span>
             <span className={`ticker-value ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
-              {item.value?.toFixed(2)}
+              {Number(item.value)?.toFixed(2) || '--'}
             </span>
             <span className={`ticker-change ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
-              {item.change >= 0 ? '▲' : '▼'}{Math.abs(item.change)}%
+              {item.change >= 0 ? '▲' : '▼'}{Math.abs(Number(item.change) || 0).toFixed(2)}%
             </span>
           </div>
         ))}

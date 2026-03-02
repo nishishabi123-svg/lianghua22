@@ -91,7 +91,7 @@ const IdleMarketDisplay = () => {
                   <div className="code">{item.code}</div>
                   <div className="name">{item.name}</div>
                   <div className={`inflow ${item.netInflow > 0 ? 'positive' : 'negative'}`}>
-                    {item.netInflow > 0 ? '+' : ''}{item.netInflow.toFixed(2)}
+                    {item.netInflow > 0 ? '+' : ''}{Number(item.netInflow || 0).toFixed(2)}
                   </div>
                   <div className="reason">{item.reason}</div>
                 </div>
@@ -107,7 +107,7 @@ const IdleMarketDisplay = () => {
                 <div key={idx} className="sector-card">
                   <div className="sector-name">{sector.name}</div>
                   <div className={`sector-change ${sector.change > 0 ? 'positive' : 'negative'}`}>
-                    {sector.change > 0 ? '+' : ''}{sector.change.toFixed(2)}%
+                    {sector.change > 0 ? '+' : ''}{Number(sector.change || 0).toFixed(2)}%
                   </div>
                   <div className="sector-count">{sector.count}只股票</div>
                   <div className="sector-leader">龙头: {sector.leader}</div>

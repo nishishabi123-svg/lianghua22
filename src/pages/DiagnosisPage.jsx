@@ -221,7 +221,7 @@ const DiagnosisPage = () => {
            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">当前成交价</p>
            <div className="flex items-center gap-3 mb-6">
-             <h3 className="text-6xl font-black text-slate-900 tracking-tighter">¥{currentStock.price}</h3>
+             <h3 className="text-6xl font-black text-slate-900 tracking-tighter">¥{Number(currentStock.price)?.toFixed(2) || '--'}</h3>
              {!currentStock.is_trading && (
                <span className="text-sm text-gray-400 bg-gray-100 px-2 py-1 rounded-full">休市中</span>
              )}
@@ -253,7 +253,7 @@ const DiagnosisPage = () => {
           <div key={i} className={`group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-500 flex flex-col items-center justify-center text-center ${aiLoading ? 'opacity-30' : ''}`}>
             <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
             <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
-            <div className="text-3xl font-black text-[#4e4376] mb-2">{d.score}</div>
+            <div className="text-3xl font-black text-[#4e4376] mb-2">{Number(d.score || 0).toFixed(1)}</div>
             <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100">{d.desc}</p>
             <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
           </div>
@@ -271,7 +271,7 @@ const DiagnosisPage = () => {
           <div className="text-center border-r border-white/20 pr-10">
             <p className="text-[10px] font-bold opacity-80 tracking-widest mb-1">AI 综合评分</p>
             <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-opacity-80">
-              {comprehensiveScore || '--'}
+              {Number(comprehensiveScore || 0).toFixed(1) || '--'}
             </p>
           </div>
           <div className="space-y-1">

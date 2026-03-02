@@ -25,7 +25,7 @@ const StockQuoteCard = ({ stockData, previousData = null }) => {
     } else if (hands >= 1000) {
       return `${(hands / 1000).toFixed(1)}千手`;
     } else {
-      return `${hands.toFixed(0)}手`;
+      return `${Number(hands || 0).toFixed(0)}手`;
     }
   };
 
