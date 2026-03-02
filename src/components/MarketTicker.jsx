@@ -19,11 +19,11 @@ const MarketTicker = () => {
       const res = await api.get('/api/market_marquee');
       
       if (res) {
-        // 直接解构对象并映射
+        // 统一字段名，确保变量名一致
         const mapped = [
-          { name: '纳指', ...res.nasdaq },
-          { name: 'A50', ...res.a50 },
-          { name: '上证', ...res.shanghai }
+          { name: '纳指', ...res.nasdaq, value: res.nasdaq?.price },
+          { name: 'A50', ...res.a50, value: res.a50?.price },
+          { name: '上证', ...res.shanghai, value: res.shanghai?.price }
         ];
         setMarketData({ indices: mapped });
       }
@@ -66,7 +66,7 @@ const MarketTicker = () => {
           <div key={`${item.code}-${idx}`} className="ticker-item">
             <span className="ticker-name">{item.name}</span>
             <span className={`ticker-value ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
-              {Number(item.value)?.toFixed(2) || '--'}
+              {Number(item.value || 0).toFixed(2)}
             </span>
             <span className={`ticker-change ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
               {item.change >= 0 ? '▲' : '▼'}{Math.abs(Number(item.change) || 0).toFixed(2)}%
