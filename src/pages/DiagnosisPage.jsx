@@ -20,7 +20,10 @@ const DiagnosisPage = () => {
 
   const fetchStockData = async (symbol) => {
     try {
-      const response = await api.get(`/api/stock_decision?symbol=${symbol}`);
+      const response = await api.get('/api/stock_decision', { 
+        params: { symbol } 
+      });
+      
       if (response && response.ai_8_dimensions) {
         const { fundamental, technical, capital, sentiment, policy, macro, risk, comprehensive } = response.ai_8_dimensions;
         
@@ -34,6 +37,17 @@ const DiagnosisPage = () => {
           { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警', score: risk || 0 },
           { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议', score: comprehensive || 0 },
         ]);
+      }
+      
+      // 更新 currentStock 状态
+      if (response && response.symbol) {
+        setCurrentStock(prev => ({
+          ...prev,
+          code: response.symbol || prev.code,
+          name: response.name || prev.name,
+          price: response.price || prev.price,
+          change: response.change || prev.change
+        }));
       }
     } catch (error) {
       console.error('获取股票决策数据失败:', error);
@@ -56,7 +70,14 @@ const DiagnosisPage = () => {
             value={searchCode}
             onChange={(e) => setSearchCode(e.target.value)}
           />
-          <button className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all">GO</button>
+          <button 
+            className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all"
+            onClick={() => {
+              if (searchCode.trim()) {
+                fetchStockData(searchCode.trim());
+              }
+            }}
+          >GO</button>
         </div>
       </section>
 
