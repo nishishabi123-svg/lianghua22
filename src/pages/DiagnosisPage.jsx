@@ -283,6 +283,15 @@ const DiagnosisPage = () => {
             }`}
           >
             {!d.expanded ? (
+              // 收缩状态：只显示核心信息
+              <>
+                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
+                <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
+                <div className="text-3xl font-black text-[#4e4376] mb-2">{Number(d.score || 0).toFixed(1)}</div>
+                <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100 line-clamp-1">{d.desc}</p>
+                <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
+              </>
+            ) : (
               // 展开状态：显示详细分析文本
               <div className="w-full h-full flex flex-col justify-center">
                 <div className="text-3xl mb-3 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
@@ -292,15 +301,6 @@ const DiagnosisPage = () => {
                   {d.fullDesc || d.desc}
                 </p>
               </div>
-            ) : (
-              // 收缩状态：只显示核心信息
-              <>
-                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
-                <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
-                <div className="text-3xl font-black text-[#4e4376] mb-2">{Number(d.score || 0).toFixed(1)}</div>
-                <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100 line-clamp-1">{d.expanded ? d.fullDesc : d.desc}</p>
-                <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
-              </>
             )}
           </div>
         ))}
