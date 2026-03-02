@@ -14,70 +14,73 @@ const MarketTicker = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchMarketMarquee = useCallback(async () => {
-    try {
-      // 后端直接返回对象，不需要.data嵌套
-      const res = await api.get('/api/market_marquee');
-      
-      if (res) {
-        console.log("跑马灯原始数据:", res); // 调试用
-        
-        // 直接点对点映射，最暴力的方式
-        const mapped = [
-          { name: '纳指', code: 'IXIC', value: res.nasdaq.price, change: parseFloat(res.nasdaq.change) },
-          { name: 'A50', code: 'A50', value: res.a50.price, change: parseFloat(res.a50.change) },
-          { name: '上证', code: '000001', value: res.shanghai.price, change: parseFloat(res.shanghai.change) }
-        ];
-        setMarketData({ indices: mapped });
-      }
-    } catch (err) {
-      console.error('获取大盘跑马灯数据失败，使用备用数据');
-      setMarketData({ indices: fallbackIndices });
-    } finally {
-      setLoading(false);
+  try {
+    const res = await api.get('/api/market_marquee');
+    console.log("🔍 跑马灯原始数据:", res);
+    
+    // 辅助函数：安全提取数字
+    const getPrice = (obj) => {
+      if (!obj || !obj.price) return null;
+      return parseFloat(String(obj.price).replace(/,/g, '')); // 去除逗号并转浮点数
+    };
+    
+    const getChange = (obj) => {
+      if (!obj || !obj.change) return 0;
+      // 处理带 % 的字符串，如 "+0.85%" -> 0.85
+      const val = parseFloat(String(obj.change).replace('%', ''));
+      return isNaN(val) ? 0 : val;
+    };
+
+    const mapped = [];
+
+    // 尝试提取纳指
+    if (res.nasdaq) {
+      mapped.push({ 
+        name: '纳指', code: 'IXIC', 
+        value: getPrice(res.nasdaq), 
+        change: getChange(res.nasdaq) 
+      });
+      console.log("✅ 纳指数据:", mapped[mapped.length-1]);
+    } else {
+      console.warn("❌ 未找到 nasdaq 字段");
     }
-  }, []);
 
-  useEffect(() => {
-    fetchMarketMarquee();
-    // 每30秒调用一次 /api/market_marquee
-    const interval = setInterval(fetchMarketMarquee, 30000);
-    return () => clearInterval(interval);
-  }, [fetchMarketMarquee]);
+    // 尝试提取 A50
+    if (res.a50) {
+      mapped.push({ 
+        name: 'A50', code: 'A50', 
+        value: getPrice(res.a50), 
+        change: getChange(res.a50) 
+      });
+      console.log("✅ A50 数据:", mapped[mapped.length-1]);
+    } else {
+      console.warn("❌ 未找到 a50 字段");
+    }
 
-  // 确保数据翻倍以实现无缝滚动
-  const marqueeItems = useMemo(() => {
-    const indices = marketData?.indices || fallbackIndices;
-    // 复制一份数据用于无缝循环滚动
-    return [...indices, ...indices];
-  }, [marketData]);
-
-  if (loading) {
-    return (
-      <div className="market-ticker">
-        <div className="ticker-track">
-          <div className="text-white text-sm">加载中...</div>
-        </div>
-      </div>
-    );
+    // 尝试提取上证
+    if (res.shanghai) {
+      mapped.push({ 
+        name: '上证', code: '000001', 
+        value: getPrice(res.shanghai), 
+        change: getChange(res.shanghai) 
+      });
+      console.log("✅ 上证数据:", mapped[mapped.length-1]);
+    } else {
+      console.warn("❌ 未找到 shanghai 字段");
+    }
+    
+    if (mapped.length > 0) {
+      console.log("🎉 最终映射数据:", mapped);
+      setMarketData({ indices: mapped });
+    } else {
+      console.error("💥 所有指数数据解析失败，使用备用数据");
+      setMarketData({ indices: fallbackIndices });
+    }
+  } catch (err) {
+    console.error('🚨 获取跑马灯数据异常:', err);
+    setMarketData({ indices: fallbackIndices });
+  } finally {
+    setLoading(false);
   }
-
-  return (
-    <div className="market-ticker">
-      <div className="ticker-track ticker-track--marquee">
-        {marqueeItems.map((item, idx) => (
-          <div key={`${item.code}-${idx}`} className="ticker-item">
-            <span className="ticker-name">{item.name}</span>
-            <span className={`ticker-value ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
-              {item.value ? Number(item.value).toFixed(2) : '--'}
-            </span>
-            <span className={`ticker-change ${item.change >= 0 ? 'ticker-up' : 'ticker-down'}`}>
-              {item.change >= 0 ? '▲' : '▼'}{Math.abs(Number(item.change) || 0).toFixed(2)}%
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
+}, []);
 export default MarketTicker;
