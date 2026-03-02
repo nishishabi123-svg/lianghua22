@@ -5,15 +5,24 @@ import api from '../api';
 
 const KLineChart = ({ symbol, height = 400 }) => {
   const [loading, setLoading] = useState(false);
+  const [isMarketClosed, setIsMarketClosed] = useState(false);
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
   const fetchData = useCallback(async () => {
     if (!symbol || symbol === '000000') return;
     setLoading(true);
+    setIsMarketClosed(false);
     try {
-      // 必须调用包含 K线数据的完整报告接口
-      const res = await api.get(`/api/stock_full_report?symbol=${encodeURIComponent(symbol)}`);
+      // 使用新的实时行情接口
+      const res = await api.get(`/api/stock_realtime?symbol=${encodeURIComponent(symbol)}`);
+      
+      // 检查是否休市
+      if (res.status === 'sleep') {
+        setIsMarketClosed(true);
+        return;
+      }
+      
       const payload = res?.data ?? res;
       const raw =
         payload?.kline_data ??
@@ -55,9 +64,27 @@ const KLineChart = ({ symbol, height = 400 }) => {
   }, []);
 
   return (
-    <Spin spinning={loading}>
-      <div ref={chartRef} style={{ width: '100%', height: `${height}px` }} />
-    </Spin>
+    <div className="relative w-full" style={{ height: `${height}px` }}>
+      <Spin spinning={loading}>
+        <div 
+          ref={chartRef} 
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            opacity: isMarketClosed ? 0.3 : 1 
+          }} 
+        />
+        {isMarketClosed && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <div className="text-4xl mb-2">😴</div>
+              <div className="text-xl font-bold text-gray-600">休市中</div>
+              <div className="text-sm text-gray-400 mt-1">交易时间敬请期待</div>
+            </div>
+          </div>
+        )}
+      </Spin>
+    </div>
   );
 };
 

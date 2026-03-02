@@ -30,6 +30,7 @@ const DiagnosisPage = () => {
     { title: '风险探测', icon: '⚠️', desc: '等待诊断', score: 0 },
     { title: '综合结论', icon: '🧠', desc: '等待诊断', score: 0 },
   ]);
+  const [comprehensiveScore, setComprehensiveScore] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
 
   // A股交易时间判断
@@ -74,8 +75,8 @@ const DiagnosisPage = () => {
     }
   }, []);
 
-  // AI分析请求
-  const fetchAIAnalysis = useCallback(async (symbol) => {
+  // AI分析请求 - handleAnalyze函数
+  const handleAnalyze = useCallback(async (symbol) => {
     if (!symbol) return;
     
     setAiLoading(true);
@@ -85,25 +86,41 @@ const DiagnosisPage = () => {
       });
       
       if (response && response.ai_8_dimensions) {
-        const { fundamental, technical, capital, sentiment, policy, macro, risk, comprehensive } = response.ai_8_dimensions;
+        const d = response.ai_8_dimensions;
         
-        setDimensions([
-          { title: '基本面', icon: '📊', desc: '财务报表与盈利能力', score: fundamental || 0 },
-          { title: '技术面', icon: '📈', desc: '量价形态与指标共振', score: technical || 0 },
-          { title: '资金流向', icon: '💰', desc: '主力机构席位跟踪', score: capital || 0 },
-          { title: '市场情绪', icon: '🔥', desc: '热点题材热度分析', score: sentiment || 0 },
-          { title: '宏观政策', icon: '🏛️', desc: '行业导向影响评级', score: policy || 0 },
-          { title: '外围影响', icon: '🌍', desc: '全球市场联动对冲', score: macro || 0 },
-          { title: '风险探测', icon: '⚠️', desc: '股权质押等隐患预警', score: risk || 0 },
-          { title: '综合结论', icon: '🧠', desc: 'AI全维度最终建议', score: comprehensive || 0 },
-        ]);
+        // 按fundamental到comprehensive的顺序映射8个维度
+        const mapped = [
+          { ...dimensions[0], score: d.fundamental?.score || 0, desc: d.fundamental?.desc || '财务报表与盈利能力' },
+          { ...dimensions[1], score: d.technical?.score || 0, desc: d.technical?.desc || '量价形态与指标共振' },
+          { ...dimensions[2], score: d.capital?.score || 0, desc: d.capital?.desc || '主力机构席位跟踪' },
+          { ...dimensions[3], score: d.sentiment?.score || 0, desc: d.sentiment?.desc || '热点题材热度分析' },
+          { ...dimensions[4], score: d.policy?.score || 0, desc: d.policy?.desc || '行业导向影响评级' },
+          { ...dimensions[5], score: d.macro?.score || 0, desc: d.macro?.desc || '全球市场联动对冲' },
+          { ...dimensions[6], score: d.risk?.score || 0, desc: d.risk?.desc || '股权质押等隐患预警' },
+          { ...dimensions[7], score: d.comprehensive?.score || 0, desc: d.comprehensive?.desc || 'AI全维度最终建议' },
+        ];
+        
+        // 这一步不写，页面永远是 0 分
+        setDimensions(mapped);
+        
+        // 同步更新AI综合评分
+        setComprehensiveScore(d.comprehensive?.score || 0);
+        
+        // 更新当前股票信息
+        setCurrentStock(prev => ({
+          ...prev,
+          code: symbol,
+          name: response.name || prev.name,
+          price: response.price || prev.price,
+          change: response.change_percent || response.change || prev.change
+        }));
       }
     } catch (error) {
       console.error('获取AI分析失败:', error);
     } finally {
       setAiLoading(false);
     }
-  }, []);
+  }, [dimensions]);
 
   // 过滤搜索建议
   const filteredSuggestions = stockSuggestions.filter(stock => 
@@ -116,7 +133,11 @@ const DiagnosisPage = () => {
     setSearchCode(stock.code);
     setShowSuggestions(false);
     fetchRealtimeData(stock.code);
-    setCurrentStock(prev => ({ ...prev, code: stock.code, name: stock.name }));
+    setCurrentStock(prev => ({ 
+      ...prev, 
+      code: stock.code, 
+      name: stock.name 
+    }));
   };
 
   // 搜索股票
@@ -191,7 +212,7 @@ const DiagnosisPage = () => {
         </div>
         <button 
           className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-12 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-          onClick={() => fetchAIAnalysis(currentStock.code)}
+          onClick={() => handleAnalyze(currentStock.code)}
           disabled={!currentStock.code || currentStock.code === '' || aiLoading}
         >
           {aiLoading ? (
@@ -262,7 +283,9 @@ const DiagnosisPage = () => {
         <div className="flex items-center gap-10 relative z-10">
           <div className="text-center border-r border-white/20 pr-10">
             <p className="text-[10px] font-bold text-blue-300 tracking-widest mb-1">AI 综合评分</p>
-            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">92</p>
+            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-blue-200">
+              {comprehensiveScore || '--'}
+            </p>
           </div>
           <div className="space-y-1">
             <h4 className="text-3xl font-black flex items-center gap-3">建议积极买入 <span className="text-blue-300 text-sm font-light">高确定性机会</span></h4>
