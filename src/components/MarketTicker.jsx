@@ -19,11 +19,13 @@ const MarketTicker = () => {
       const res = await api.get('/api/market_marquee');
       
       if (res) {
-        // 统一字段名，确保变量名一致
+        console.log("跑马灯原始数据:", res); // 调试用
+        
+        // 直接点对点映射，最暴力的方式
         const mapped = [
-          { name: '纳指', ...res.nasdaq, value: res.nasdaq?.price },
-          { name: 'A50', ...res.a50, value: res.a50?.price },
-          { name: '上证', ...res.shanghai, value: res.shanghai?.price }
+          { name: '纳指', code: 'IXIC', value: Number(res.nasdaq.price), change: parseFloat(res.nasdaq.change) },
+          { name: 'A50', code: 'A50', value: Number(res.a50.price), change: parseFloat(res.a50.change) },
+          { name: '上证', code: '000001', value: Number(res.shanghai.price), change: parseFloat(res.shanghai.change) }
         ];
         setMarketData({ indices: mapped });
       }
