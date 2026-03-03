@@ -90,7 +90,7 @@ const MarketTicker = () => {
 
   useEffect(() => {
     fetchMarketMarquee();
-    // 每 30 秒刷新一次
+    // 每 60 秒刷新一次
     const interval = setInterval(fetchMarketMarquee, 30000);
     return () => clearInterval(interval);
   }, [fetchMarketMarquee]);

@@ -1,345 +1,401 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import KLineChart from '../components/KLineChart';
-import api from '../api';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, ArrowRight, Activity, TrendingUp, Shield, AlertCircle, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import KLineChart from './KLineChart';
+import OrderBook from './OrderBook';
+import MarketTicker from './MarketTicker';
+import StockNews from './StockNews';
+import { fetchStockRealtime, fetchAIDiagnosis, searchStockSuggestion } from '../services/api';
 
-// 常用股票代码建议
-const stockSuggestions = [
-  { code: '600519', name: '贵州茅台' },
-  { code: '000001', name: '平安银行' },
-  { code: '000002', name: '万科A' },
-  { code: '000858', name: '五粮液' },
-  { code: '002415', name: '海康威视' },
-  { code: '300059', name: '东方财富' },
-  { code: '601318', name: '中国平安' },
-  { code: '600036', name: '招商银行' },
-];
+// 默认显示的股票
+const DEFAULT_STOCK = {
+  code: '600519',
+  name: '贵州茅台',
+  market: 'sh'
+};
 
 const DiagnosisPage = () => {
-  const [searchCode, setSearchCode] = useState('');
+  // --- 状态管理 ---
+  const [currentStock, setCurrentStock] = useState(DEFAULT_STOCK);
+  const [searchInput, setSearchInput] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [currentStock, setCurrentStock] = useState({ 
-    code: '', name: '请输入股票代码', price: '--', change: '--', is_trading: true
-  });
-  const [dimensions, setDimensions] = useState([
-    { title: '基本面', icon: '📊', key: 'fundamental', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '技术面', icon: '📈', key: 'technical', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '资金流向', icon: '💰', key: 'capital', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '市场情绪', icon: '🔥', key: 'sentiment', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '宏观政策', icon: '🏛️', key: 'policy', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '外围影响', icon: '🌍', key: 'macro', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '风险探测', icon: '⚠️', key: 'risk', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-    { title: '综合结论', icon: '🧠', key: 'comprehensive', desc: '等待诊断', score: 0, expanded: false, fullDesc: '' },
-  ]);
-  const [comprehensiveScore, setComprehensiveScore] = useState(0);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [advice, setAdvice] = useState({ type: 2, target_price: '--', message: '建议观望位：--' });
+  
+  // 数据状态
+  const [realtimeData, setRealtimeData] = useState(null);
+  const [klineData, setKlineData] = useState([]);
+  const [aiData, setAiData] = useState(null);
+  
+  // 加载与错误状态
+  const [loadingRealtime, setLoadingRealtime] = useState(false);
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [error, setError] = useState(null);
 
-  // A股交易时间判断
-  const isTradingTime = useCallback(() => {
-    const now = new Date();
-    const day = now.getDay(); // 0是周日，6是周六
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    
-    // 周末不交易
-    if (day === 0 || day === 6) return false;
-    
-    // 上午交易时间：9:30-11:30
-    if (hour === 9 && minute >= 30) return true;
-    if (hour === 10 || hour === 11) return true;
-    if (hour === 11 && minute <= 30) return true;
-    
-    // 下午交易时间：13:00-15:00
-    if (hour === 13 || hour === 14) return true;
-    if (hour === 15 && minute === 0) return true;
-    
-    return false;
-  }, []);
+  // 【关键修改】新增状态：标记用户是否主动执行过搜索
+  // false = 初始状态，不加载 AI，显示占位符
+  // true = 用户已搜索，加载 AI 数据
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // AI诊断函数 - fetchAIDiagnosis
-  const fetchAIDiagnosis = useCallback(async (symbol) => {
-    if (!symbol) return;
-    
-    // 按下GO时，将isAnalyzing设为true
-    setAiLoading(true);
-    
-    // 流A：即时行情请求
-    const realtimePromise = api.get(`/api/stock_realtime?symbol=${symbol}`);
-    
-    // 流B：AI分析请求
-    const aiPromise = api.get(`/api/stock_decision?symbol=${symbol}`);
-    
+  const suggestionTimer = useRef(null);
+
+  // --- 数据获取函数 ---
+
+  // 1. 获取实时行情和 K 线 (首页默认加载，搜索后也加载)
+  const loadRealtimeData = async (code) => {
+    setLoadingRealtime(true);
+    setError(null);
     try {
-      // 立即处理流A - 实时行情
-      const realtimeResponse = await realtimePromise;
-      if (realtimeResponse) {
-        setCurrentStock({
-          code: realtimeResponse.symbol || symbol,
-          name: realtimeResponse.name || '查询成功',
-          price: realtimeResponse.price,
-          change: realtimeResponse.change,
-          is_trading: realtimeResponse.is_trading !== false
-        });
+      const data = await fetchStockRealtime(code);
+      if (data && data.status === 'success') {
+        setRealtimeData(data);
+        // 假设 API 返回中包含 kline_data，如果没有可能需要单独调用
+        // 这里根据你的 main.py 逻辑，stock_realtime 似乎同时返回了 price 和 kline_data
+        if (data.kline_data) {
+          setKlineData(data.kline_data);
+        }
+      } else {
+        setError('获取行情数据失败');
       }
-    } catch (error) {
-      console.error('获取实时行情失败:', error);
-      // 显示用户友好的错误提示
-      alert(`实时行情加载失败，请检查网络连接或稍后重试`);
-    }
-    
-    // 启动AI分析流B
-    try {
-      const aiResponse = await aiPromise;
-      
-      // 扁平化读取，移除.data嵌套
-      if (aiResponse && aiResponse.ai_8_dimensions) {
-        const d = aiResponse.ai_8_dimensions;
-        
-        // 对齐后端key值：fundamental, technical, capital, sentiment, policy, macro, risk, comprehensive
-        // 移除所有.data嵌套，直接读取res.ai_8_dimensions.*
-        const mapped = [
-          { ...dimensions[0], score: Number(d.fundamental?.score || 0), desc: d.fundamental?.desc || '财务报表与盈利能力', fullDesc: d.fundamental?.desc || '财务报表与盈利能力' },
-          { ...dimensions[1], score: Number(d.technical?.score || 0), desc: d.technical?.desc || '量价形态与指标共振', fullDesc: d.technical?.desc || '量价形态与指标共振' },
-          { ...dimensions[2], score: Number(d.capital?.score || 0), desc: d.capital?.desc || '主力机构席位跟踪', fullDesc: d.capital?.desc || '主力机构席位跟踪' },
-          { ...dimensions[3], score: Number(d.sentiment?.score || 0), desc: d.sentiment?.desc || '热点题材热度分析', fullDesc: d.sentiment?.desc || '热点题材热度分析' },
-          { ...dimensions[4], score: Number(d.policy?.score || 0), desc: d.policy?.desc || '行业导向影响评级', fullDesc: d.policy?.desc || '行业导向影响评级' },
-          { ...dimensions[5], score: Number(d.macro?.score || 0), desc: d.macro?.desc || '全球市场联动对冲', fullDesc: d.macro?.desc || '全球市场联动对冲' },
-          { ...dimensions[6], score: Number(d.risk?.score || 0), desc: d.risk?.desc || '股权质押等隐患预警', fullDesc: d.risk?.desc || '股权质押等隐患预警' },
-          { ...dimensions[7], score: Number(d.comprehensive?.score || 0), desc: d.comprehensive?.desc || 'AI全维度最终建议', fullDesc: d.comprehensive?.desc || 'AI全维度最终建议' },
-        ];
-        
-        setDimensions(mapped);
-        setComprehensiveScore(Number(d.comprehensive?.score || 0));
-        
-        // 处理决策建议
-        const adviceType = aiResponse.advice_type || 2;
-        const targetPrice = aiResponse.target_price || '--';
-        const adviceMessages = {
-          1: `建议建仓位：${targetPrice}`,
-          2: `建议观望位：${targetPrice}`,
-          3: `建议平仓位：${targetPrice}`
-        };
-        
-        setAdvice({
-          type: adviceType,
-          target_price: targetPrice,
-          message: adviceMessages[adviceType] || adviceMessages[2]
-        });
-      }
-    } catch (error) {
-      console.error('获取AI分析失败:', error);
-      // 显示用户友好的错误提示
-      alert(`AI分析失败，请检查网络连接或稍后重试`);
+    } catch (err) {
+      console.error('Realtime error:', err);
+      setError('网络异常，无法获取行情');
     } finally {
-      setAiLoading(false);
+      setLoadingRealtime(false);
     }
-  }, [dimensions]);
-
-  // 卡片折叠切换 - 确保正确修改对应索引的expanded布尔值
-  const toggleDimension = useCallback((index) => {
-    setDimensions(prev => prev.map((dim, i) => 
-      i === index ? { ...dim, expanded: !dim.expanded } : dim
-    ));
-  }, []);
-
-  // 过滤搜索建议
-  const filteredSuggestions = stockSuggestions.filter(stock => 
-    stock.code.includes(searchCode.toUpperCase()) || 
-    stock.name.includes(searchCode)
-  );
-
-  // 选择建议项
-  const selectSuggestion = (stock) => {
-    setSearchCode(stock.code);
-    setShowSuggestions(false);
-    // 使用AI诊断逻辑
-    fetchAIDiagnosis(stock.code);
   };
 
-  // 搜索股票 - 使用双流加载
-  const handleSearch = useCallback(() => {
-    const code = searchCode.trim();
-    if (!code) return;
-    setSearchCode(code);
-    setShowSuggestions(false);
-    // 关键：先更新 currentStock 的 code，触发 KLineChart 重新渲染
-    setCurrentStock(prev => ({ ...prev, code: code })); 
-    fetchAIDiagnosis(code);
-  }, [searchCode, fetchAIDiagnosis]);
+  // 2. 获取 AI 诊断 (仅在用户主动搜索后调用)
+  const loadAiDiagnosis = async (code) => {
+    setLoadingAi(true);
+    try {
+      const data = await fetchAIDiagnosis(code);
+      if (data && data.status === 'success') {
+        setAiData(data);
+      } else {
+        setAiData(null); // 清除旧数据以防误导
+        setError('AI 分析服务暂时不可用');
+      }
+    } catch (err) {
+      console.error('AI Diagnosis error:', err);
+      setAiData(null);
+      setError('AI 分析请求失败');
+    } finally {
+      setLoadingAi(false);
+    }
+  };
 
-  // 页面初始化时默认加载600519数据
+  // --- 副作用 (Effects) ---
+
+  // 初始化：仅加载默认股票的行情和 K 线，**不**加载 AI
   useEffect(() => {
-    fetchAIDiagnosis('600519');
+    loadRealtimeData(DEFAULT_STOCK.code);
+    
+    // 清理建议框
+    return () => {
+      if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
+    };
   }, []);
 
-  return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-700">
+  // 处理搜索建议
+  const handleSearchChange = async (e) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    
+    if (value.length >= 2) {
+      if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
       
-      {/* 1. 一键诊股入口 */}
-      <section className="bg-white/70 backdrop-blur-md rounded-[2rem] p-6 border border-slate-200 shadow-sm flex flex-col items-center">
-        <div className="w-full max-w-2xl relative">
-          <div className="flex p-1.2 bg-slate-100 rounded-2xl border border-slate-200">
-            <input 
-              className="flex-1 bg-transparent px-5 outline-none text-slate-700 font-bold" 
-              placeholder="输入股票代码(如600519)或名称..." 
-              value={searchCode}
-              onChange={(e) => setSearchCode(e.target.value)}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <button 
-              className="bg-[#4e4376] text-white px-8 py-3 rounded-xl font-black shadow-lg active:scale-95 transition-all"
-              onClick={handleSearch}
-            >GO</button>
-          </div>
-          
-          {/* 搜索建议下拉框 */}
-          {showSuggestions && searchCode && filteredSuggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-lg z-10 max-h-60 overflow-y-auto">
-              {filteredSuggestions.map((stock, index) => (
-                <div
-                  key={index}
-                  className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-b-0 transition-colors"
-                  onClick={() => selectSuggestion(stock)}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="font-mono text-sm text-slate-600">{stock.code}</span>
-                    <span className="text-sm text-slate-800 font-medium">{stock.name}</span>
-                  </div>
+      suggestionTimer.current = setTimeout(async () => {
+        try {
+          const results = await searchStockSuggestion(value);
+          setSuggestions(results || []);
+          setShowSuggestions(true);
+        } catch (err) {
+          setSuggestions([]);
+        }
+      }, 300);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // 处理搜索提交 (核心逻辑修改处)
+  const handleSearch = (code, name, market) => {
+    const finalCode = code || searchInput;
+    const finalName = name || searchInput;
+    const finalMarket = market || (finalCode.startsWith('6') ? 'sh' : 'sz');
+
+    if (!finalCode) return;
+
+    // 1. 更新当前股票状态
+    const newStock = { code: finalCode, name: finalName, market: finalMarket };
+    setCurrentStock(newStock);
+    
+    // 2. 关闭建议框
+    setShowSuggestions(false);
+    setSearchInput('');
+    setSuggestions([]);
+
+    // 3. 立即刷新 K 线和实盘数据
+    loadRealtimeData(finalCode);
+
+    // 4. 【关键修改】标记已搜索，并触发 AI 分析
+    setHasSearched(true);
+    loadAiDiagnosis(finalCode);
+  };
+
+  const selectSuggestion = (stock) => {
+    handleSearch(stock.code, stock.name, stock.market);
+  };
+
+  // --- 渲染辅助组件 ---
+
+  // 渲染 AI 卡片的占位符 (未搜索时显示)
+  const renderPlaceholderCard = (title, icon: React.ReactNode) => (
+    <Card className="h-full bg-slate-50 border-dashed border-slate-200">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="h-20 flex items-center justify-center text-xs text-slate-400 text-center px-2">
+          请输入股票代码并点击搜索<br/>以获取 AI 深度分析
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // 渲染真实的 AI 卡片内容
+  const renderAiCard = (title, value, detail, icon: React.ReactNode, colorClass = "text-blue-600") => (
+    <Card className="h-full hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className={`text-2xl font-bold ${colorClass}`}>
+          {value || '--'}
+        </div>
+        <p className="text-xs text-slate-400 mt-1 line-clamp-2 h-8">
+          {detail || '暂无详细分析'}
+        </p>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-100 p-4 md:p-6 space-y-6">
+      {/* 顶部跑马灯 */}
+      <MarketTicker />
+
+      {/* 头部搜索区 */}
+      <Card className="border-none shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full md:w-96">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="输入股票代码或名称 (例: 600519)"
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="flex-1"
+                />
+                <Button onClick={() => handleSearch()} disabled={!searchInput && !currentStock.code}>
+                  <Search className="w-4 h-4 mr-2" />
+                  GO
+                </Button>
+              </div>
+              
+              {/* 搜索建议下拉框 */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-60 overflow-auto">
+                  {suggestions.map((stock) => (
+                    <div
+                      key={stock.code}
+                      className="px-4 py-2 hover:bg-slate-100 cursor-pointer flex justify-between items-center"
+                      onClick={() => selectSuggestion(stock)}
+                    >
+                      <span className="font-medium">{stock.name}</span>
+                      <span className="text-xs text-slate-500">{stock.code}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* 2. 【找回的部分】K线与盘口数据 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 h-[320px] sm:h-[480px]">
-        {/* K线图区域 - 强化边界 */}
-        <div className="col-span-1 lg:col-span-8 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-3 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50/50">
-            <span className="text-lg sm:text-xl font-black text-slate-800">
-              {currentStock.name} <span className="text-xs font-mono text-slate-400 ml-2">{currentStock.code}</span>
-            </span>
-            <div className="flex bg-white p-1 rounded-lg border border-slate-200">
-              {['分时', '日K', '周K'].map(t => (
-                <button 
-                  key={t} 
-                  onClick={() => {
-                    setCurrentStock(prev => ({ ...prev, period: t }));
-                  }}
-                  className={`px-4 py-1 text-xs rounded ${t===(currentStock.period || '日线')?'bg-[#4e4376] text-white font-bold':'text-slate-400'}`}
-                >
-                  {t}
-                </button>
-              ))}
+            
+            <div className="text-sm text-slate-500 flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              <span>当前关注: <strong className="text-slate-900">{currentStock.name} ({currentStock.code})</strong></span>
             </div>
           </div>
-          <div className="flex-1 p-2 sm:p-4 relative">
-             <KLineChart symbol={currentStock.code} period={currentStock.period || '日线'} />
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* 盘口数据区域 - 强化边界 */}
-        <div className="col-span-1 lg:col-span-4 bg-white rounded-[2rem] border border-slate-200 shadow-sm p-4 sm:p-8 flex flex-col justify-center relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">当前成交价</p>
-           <div className="flex items-center gap-3 mb-6">
-             <h3 className="text-6xl font-black text-slate-900 tracking-tighter">¥{Number(currentStock.price)?.toFixed(2) || '--'}</h3>
-             {!currentStock.is_trading && (
-               <span className="text-sm text-gray-400 bg-gray-100 px-2 py-1 rounded-full">休市中</span>
-             )}
-           </div>
-           <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">当日涨跌</p>
-                <p className="text-xl font-black text-red-500">{currentStock.change}</p>
-              </div>
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] text-slate-400 mb-1 uppercase font-bold">成交金额</p>
-                <p className="text-xl font-black text-slate-700">42.8亿</p>
-              </div>
-           </div>
-        </div>
+      {/* 错误提示 */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>错误</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* 主内容区：K 线与实盘 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 左侧：K 线图 (占 2/3) */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              K 线走势
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingRealtime && !klineData.length ? (
+              <div className="h-96 flex items-center justify-center text-slate-400">加载图表中...</div>
+            ) : (
+              <KLineChart data={klineData} symbol={currentStock.code} />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 右侧：五档实盘 (占 1/3) */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5" />
+              实时盘口
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingRealtime && !realtimeData ? (
+              <div className="h-96 flex items-center justify-center text-slate-400">加载盘口中...</div>
+            ) : realtimeData ? (
+              <OrderBook data={realtimeData} />
+            ) : (
+              <div className="h-96 flex items-center justify-center text-slate-400">暂无数据</div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* 3. 8维卡片矩阵 - 折叠交互 */}
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-3 lg:gap-6 relative">
-        {aiLoading && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-[2rem] z-10 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3 mx-auto"></div>
-              <p className="text-sm text-slate-600 font-medium">AI正在调取8维度深度数据，请稍候...</p>
+      {/* 底部：AI 深度分析区 (8 个小卡片) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            AI 深度决策分析
+            {!hasSearched && <Badge variant="secondary" className="ml-2 font-normal">待激活</Badge>}
+            {loadingAi && <Badge variant="outline" className="ml-2 animate-pulse">分析中...</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!hasSearched ? (
+            // 【状态 A】未搜索：显示灰色占位符
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {renderPlaceholderCard("综合评分", <Activity className="w-4 h-4" />)}
+              {renderPlaceholderCard("基本面", <TrendingUp className="w-4 h-4" />)}
+              {renderPlaceholderCard("技术面", <Activity className="w-4 h-4" />)}
+              {renderPlaceholderCard("资金流向", <RefreshCw className="w-4 h-4" />)}
+              {renderPlaceholderCard("市场情绪", <Shield className="w-4 h-4" />)}
+              {renderPlaceholderCard("估值分析", <TrendingUp className="w-4 h-4" />)}
+              {renderPlaceholderCard("波动率", <Activity className="w-4 h-4" />)}
+              {renderPlaceholderCard("目标价", <Shield className="w-4 h-4" />)}
             </div>
-          </div>
-        )}
-        {dimensions.map((d, i) => (
-          <div 
-            key={i} 
-            onClick={() => toggleDimension(i)}
-            className={`group relative aspect-square bg-white/60 backdrop-blur-md p-8 rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100 hover:bg-white hover:-translate-y-2 transition-all duration-300 flex flex-col items-center justify-center text-center cursor-pointer ${aiLoading ? 'opacity-30' : ''} ${
-              d.expanded ? 'row-span-2 col-span-2' : ''
-            }`}
-          >
-            {!d.expanded ? (
-              // 收缩状态：只显示核心信息
-              <>
-                <div className="text-5xl mb-4 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
-                <h4 className="font-black text-slate-700 text-lg mb-1">{d.title}</h4>
-                <div className="text-3xl font-black text-[#4e4376] mb-2">{Number(d.score || 0).toFixed(1)}</div>
-                <p className="text-[10px] text-slate-400 leading-tight opacity-60 group-hover:opacity-100 line-clamp-1">{d.desc}</p>
-                <div className="w-6 h-1 bg-slate-200 rounded-full mt-4 group-hover:w-12 group-hover:bg-[#4e4376] transition-all"></div>
-              </>
-            ) : (
-              // 展开状态：显示详细分析文本
-              <div className="w-full h-full flex flex-col justify-center">
-                <div className="text-3xl mb-3 group-hover:scale-110 transition-transform drop-shadow-md">{d.icon}</div>
-                <h4 className="font-black text-slate-700 text-lg mb-2">{d.title}</h4>
-                <div className="text-2xl font-black text-[#4e4376] mb-3">{Number(d.score || 0).toFixed(1)}</div>
-                <p className="text-sm text-slate-600 leading-relaxed bg-white/50 p-4 rounded-xl">
-                  {d.fullDesc || d.desc}
-                </p>
-              </div>
-            )}
-          </div>
-        ))}
-      </section>
-
-      {/* 4. 底部决策条 - advice_type逻辑映射 */}
-      <section className={`rounded-[2.5rem] p-10 text-white shadow-2xl flex items-center justify-between relative overflow-hidden border border-white/10 ${
-        advice.type === 1 ? 'bg-gradient-to-r from-blue-600 to-blue-500' :
-        advice.type === 2 ? 'bg-gradient-to-r from-gray-600 to-gray-500' :
-        advice.type === 3 ? 'bg-gradient-to-r from-red-600 to-red-500' :
-        'bg-gradient-to-r from-gray-600 to-gray-500'
-      }`}>
-        <div className="flex items-center gap-10 relative z-10">
-          <div className="text-center border-r border-white/20 pr-10">
-            <p className="text-[10px] font-bold opacity-80 tracking-widest mb-1">AI 综合评分</p>
-            <p className="text-7xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-opacity-80">
-              {Number(comprehensiveScore || 0).toFixed(1) || '--'}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-3xl font-black flex items-center gap-3">
-              {advice.message} 
-              <span className="text-sm font-light opacity-80">
-                {advice.type === 1 ? '高确定性机会' :
-                 advice.type === 2 ? '耐心等待时机' :
-                 advice.type === 3 ? '风险控制优先' :
-                 '市场观望'}
-              </span>
-            </h4>
-            <p className="opacity-80 text-xs max-w-xl italic">
-              综合多维深度数据，AI 检测到{advice.type === 1 ? '机构主力正在关键支撑位构建底仓，技术面呈现多头排列，建议择机入场。' :
-                                            advice.type === 2 ? '市场处于震荡调整阶段，建议耐心等待更好的入场时机。' :
-                                            advice.type === 3 ? '风险因素累积，建议及时止盈止损，控制风险。' :
-                                            '市场暂无明显趋势，建议谨慎观望。'}
-            </p>
-          </div>
-        </div>
-        <div className="text-4xl font-black opacity-10 absolute right-10 top-1/2 -translate-y-1/2">TRADE</div>
-      </section>
+          ) : loadingAi ? (
+            // 【状态 B】加载中
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <Card key={i} className="h-32 animate-pulse bg-slate-50">
+                  <CardContent className="p-4 flex flex-col justify-center h-full">
+                    <div className="h-4 bg-slate-200 rounded w-1/2 mb-2"></div>
+                    <div className="h-8 bg-slate-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-slate-200 rounded w-full"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : aiData ? (
+            // 【状态 C】有数据：显示真实分析结果
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {renderAiCard(
+                "综合评分", 
+                aiData.ai_8_dimensions?.comprehensive || "N/A", 
+                aiData.message, 
+                <Activity className="w-4 h-4" />,
+                "text-blue-600"
+              )}
+              {renderAiCard(
+                "基本面", 
+                aiData.ai_8_dimensions?.fundamental || "N/A", 
+                aiData.ai_8_dimensions?.fundamental_desc || "", 
+                <TrendingUp className="w-4 h-4" />,
+                "text-green-600"
+              )}
+              {renderAiCard(
+                "技术面", 
+                aiData.ai_8_dimensions?.technical || "N/A", 
+                aiData.ai_8_dimensions?.technical_desc || "", 
+                <Activity className="w-4 h-4" />,
+                "text-purple-600"
+              )}
+              {renderAiCard(
+                "资金流向", 
+                aiData.ai_8_dimensions?.liquidity || "N/A", 
+                aiData.ai_8_dimensions?.liquidity_desc || "", 
+                <RefreshCw className="w-4 h-4" />,
+                "text-red-600"
+              )}
+              {renderAiCard(
+                "市场情绪", 
+                aiData.ai_8_dimensions?.sentiment || "N/A", 
+                aiData.ai_8_dimensions?.sentiment_desc || "", 
+                <Shield className="w-4 h-4" />,
+                "text-orange-600"
+              )}
+              {renderAiCard(
+                "估值分析", 
+                aiData.ai_8_dimensions?.valuation || "N/A", 
+                aiData.ai_8_dimensions?.valuation_desc || "", 
+                <TrendingUp className="w-4 h-4" />,
+                "text-indigo-600"
+              )}
+              {renderAiCard(
+                "波动率", 
+                aiData.ai_8_dimensions?.volatility || "N/A", 
+                aiData.ai_8_dimensions?.volatility_desc || "", 
+                <Activity className="w-4 h-4" />,
+                "text-pink-600"
+              )}
+              {renderAiCard(
+                "目标价", 
+                aiData.target_price?.medium_term || "N/A", 
+                `短期: ${aiData.target_price?.short_term || '-'} | 中期: ${aiData.target_price?.medium_term || '-'}`, 
+                <Shield className="w-4 h-4" />,
+                "text-slate-700"
+              )}
+            </div>
+          ) : (
+            // 【状态 D】搜索了但没数据
+            <div className="text-center py-10 text-slate-500">
+              暂无 AI 分析数据，请尝试其他股票
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* 新闻模块 (可选，保持原有逻辑) */}
+      <StockNews symbol={currentStock.code} />
     </div>
   );
 };
