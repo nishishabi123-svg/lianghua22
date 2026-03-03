@@ -21,7 +21,7 @@ const MarketTicker = () => {
       
       // 辅助函数：安全提取价格 (转为数字)
       const getPrice = (obj) => {
-        if (!obj || !obj.price) return null;
+        if (!obj || obj.price === undefined || obj.price === null) return null;
         // 去除逗号并转浮点数，处理 "12,150.00" 或 "12150.00"
         return parseFloat(String(obj.price).replace(/,/g, ''));
       };

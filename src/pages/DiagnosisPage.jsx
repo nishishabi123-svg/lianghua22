@@ -160,11 +160,11 @@ const DiagnosisPage = () => {
   const handleSearch = useCallback(() => {
     const code = searchCode.trim();
     if (!code) return;
-
     setSearchCode(code);
     setShowSuggestions(false);
+    // 关键：先更新 currentStock 的 code，触发 KLineChart 重新渲染
+    setCurrentStock(prev => ({ ...prev, code: code })); 
     fetchAIDiagnosis(code);
-    setCurrentStock(prev => ({ ...prev, code }));
   }, [searchCode, fetchAIDiagnosis]);
 
   // 页面初始化时默认加载600519数据

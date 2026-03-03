@@ -11,18 +11,19 @@ const normalizeKlineData = (rawData) => {
   const data = [];
   
   rawData.forEach(item => {
+    // 确保数组长度足够 (至少包含日期到最低价，成交量可选)
     if (Array.isArray(item) && item.length >= 5) {
+      const date = String(item[0]);
       const open = parseFloat(item[1]);
       const close = parseFloat(item[2]);
-      const val3 = parseFloat(item[3]);
-      const val4 = parseFloat(item[4]);
-      
-      const high = Math.max(val3, val4);
-      const low = Math.min(val3, val4);
+      const high = parseFloat(item[3]); // 后端索引 3 是最高价
+      const low = parseFloat(item[4]);  // 后端索引 4 是最低价
       const vol = item.length > 5 ? parseFloat(item[5]) : 0;
 
-      dates.push(String(item[0]));
-      // ECharts: [开盘，收盘，最低，最高，成交量]
+      dates.push(date);
+      
+      // ECharts 蜡烛图严格顺序: [开盘, 收盘, 最低, 最高, 成交量]
+      // 注意：第3项必须是 Low，第4项必须是 High
       data.push([open, close, low, high, vol]);
     }
   });
