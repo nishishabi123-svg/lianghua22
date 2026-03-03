@@ -1,387 +1,132 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, ArrowRight, Activity, TrendingUp, Shield, AlertCircle, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import React, { useState, useEffect } from 'react';
+// ✅ 保留存在的组件导入
 import KLineChart from '../components/KLineChart';
 import MarketTicker from '../components/MarketTicker';
 import StockNews from '../components/StockNews';
-import { fetchStockRealtime, fetchAIDiagnosis, searchStockSuggestion } from '../services/api';
+// ❌ 已删除: import OrderBook from '../components/OrderBook';
 
-// 默认显示的股票
-const DEFAULT_STOCK = {
-  code: '600519',
-  name: '贵州茅台',
-  market: 'sh'
-};
+// 引入基础 UI 组件 (假设这些存在)
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const DiagnosisPage = () => {
-  // --- 状态管理 ---
-  const [currentStock, setCurrentStock] = useState(DEFAULT_STOCK);
-  const [searchInput, setSearchInput] = useState('');
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  // 数据状态
-  const [realtimeData, setRealtimeData] = useState(null);
+  const [currentStock, setCurrentStock] = useState({ code: '600519', name: '贵州茅台' });
   const [klineData, setKlineData] = useState([]);
-  const [aiData, setAiData] = useState(null);
-  
-  // 加载与错误状态
-  const [loadingRealtime, setLoadingRealtime] = useState(false);
-  const [loadingAi, setLoadingAi] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [searchCode, setSearchCode] = useState('');
+  const [realtimeData, setRealtimeData] = useState([]); // 模拟盘口数据，防止 OrderBook 移除后变量未定义报错
 
-  // 【关键】标记用户是否主动执行过搜索
-  const [hasSearched, setHasSearched] = useState(false);
-
-  const suggestionTimer = useRef(null);
-
-  // --- 数据获取函数 ---
-
-  // 1. 获取实时行情和 K 线 (首页默认加载，搜索后也加载)
-  const loadRealtimeData = async (code) => {
-    setLoadingRealtime(true);
-    setError(null);
+  // 模拟获取数据
+  const fetchData = async (code) => {
+    setLoading(true);
     try {
-      const data = await fetchStockRealtime(code);
-      if (data && data.status === 'success') {
-        setRealtimeData(data);
-        if (data.kline_data) {
-          setKlineData(data.kline_data);
-        }
-      } else {
-        setError('获取行情数据失败');
-      }
-    } catch (err) {
-      console.error('Realtime error:', err);
-      setError('网络异常，无法获取行情');
-    } finally {
-      setLoadingRealtime(false);
-    }
-  };
-
-  // 2. 获取 AI 诊断 (仅在用户主动搜索后调用)
-  const loadAiDiagnosis = async (code) => {
-    setLoadingAi(true);
-    try {
-      const data = await fetchAIDiagnosis(code);
-      if (data && data.status === 'success') {
-        setAiData(data);
-      } else {
-        setAiData(null);
-        setError('AI 分析服务暂时不可用');
-      }
-    } catch (err) {
-      console.error('AI Diagnosis error:', err);
-      setAiData(null);
-      setError('AI 分析请求失败');
-    } finally {
-      setLoadingAi(false);
-    }
-  };
-
-  // --- 副作用 (Effects) ---
-
-  // 【关键修改】初始化：仅加载默认股票的行情和 K 线，**绝对不**加载 AI
-  useEffect(() => {
-    console.log('🚀 页面初始化，仅加载行情数据...');
-    loadRealtimeData(DEFAULT_STOCK.code);
-    
-    return () => {
-      if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
-    };
-  }, []); // 空依赖数组，只运行一次
-
-  // 处理搜索建议
-  const handleSearchChange = async (e) => {
-    const value = e.target.value;
-    setSearchInput(value);
-    
-    if (value.length >= 2) {
-      if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
+      // 模拟 K 线数据
+      const mockKline = Array.from({ length: 50 }, (_, i) => ({
+        time: `2023-10-${i + 1}`,
+        open: 1700 + Math.random() * 50,
+        high: 1750 + Math.random() * 50,
+        low: 1680 + Math.random() * 50,
+        close: 1720 + Math.random() * 50,
+        volume: Math.floor(Math.random() * 10000)
+      }));
+      setKlineData(mockKline);
       
-      suggestionTimer.current = setTimeout(async () => {
-        try {
-          const results = await searchStockSuggestion(value);
-          setSuggestions(results || []);
-          setShowSuggestions(true);
-        } catch (err) {
-          setSuggestions([]);
-        }
-      }, 300);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
+      // 模拟实时交易数据 (原本传给 OrderBook 的)
+      setRealtimeData(Array.from({ length: 10 }, (_, i) => ({
+        price: 1700 + i,
+        amount: Math.floor(Math.random() * 100),
+        type: i % 2 === 0 ? 'buy' : 'sell'
+      })));
+    } catch (error) {
+      console.error("Fetch error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 处理搜索提交
-  const handleSearch = (code, name, market) => {
-    const finalCode = code || searchInput;
-    const finalName = name || searchInput;
-    const finalMarket = market || (finalCode.startsWith('6') ? 'sh' : 'sz');
+  useEffect(() => {
+    fetchData(currentStock.code);
+  }, [currentStock.code]);
 
-    if (!finalCode) return;
-
-    const newStock = { code: finalCode, name: finalName, market: finalMarket };
-    setCurrentStock(newStock);
-    
-    setShowSuggestions(false);
-    setSearchInput('');
-    setSuggestions([]);
-
-    // 刷新 K 线和实盘
-    loadRealtimeData(finalCode);
-
-    // 【关键】标记已搜索，并触发 AI 分析
-    setHasSearched(true);
-    loadAiDiagnosis(finalCode);
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchCode.trim()) {
+      setCurrentStock({ code: searchCode, name: `股票${searchCode}` });
+      setSearchCode('');
+    }
   };
-
-  const selectSuggestion = (stock) => {
-    handleSearch(stock.code, stock.name, stock.market);
-  };
-
-  // --- 渲染辅助组件 ---
-
-  const renderPlaceholderCard = (title, icon) => (
-    <Card className="h-full bg-slate-50 border-dashed border-slate-200">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="h-20 flex items-center justify-center text-xs text-slate-400 text-center px-2">
-          请输入股票代码并点击搜索<br/>以获取 AI 深度分析
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  const renderAiCard = (title, value, detail, icon, colorClass = "text-blue-600") => (
-    <Card className="h-full hover:shadow-md transition-shadow">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
-          {icon}
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className={`text-2xl font-bold ${colorClass}`}>
-          {value || '--'}
-        </div>
-        <p className="text-xs text-slate-400 mt-1 line-clamp-2 h-8">
-          {detail || '暂无详细分析'}
-        </p>
-      </CardContent>
-    </Card>
-  );
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-6 space-y-6">
-      {/* 顶部跑马灯 */}
-      <MarketTicker />
-
-      {/* 头部搜索区 */}
-      <Card className="border-none shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-96">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="输入股票代码或名称 (例: 600519)"
-                  value={searchInput}
-                  onChange={handleSearchChange}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="flex-1"
-                />
-                <Button onClick={() => handleSearch()} disabled={!searchInput && !currentStock.code}>
-                  <Search className="w-4 h-4 mr-2" />
-                  GO
-                </Button>
-              </div>
-              
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-60 overflow-auto">
-                  {suggestions.map((stock) => (
-                    <div
-                      key={stock.code}
-                      className="px-4 py-2 hover:bg-slate-100 cursor-pointer flex justify-between items-center"
-                      onClick={() => selectSuggestion(stock)}
-                    >
-                      <span className="font-medium">{stock.name}</span>
-                      <span className="text-xs text-slate-500">{stock.code}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="text-sm text-slate-500 flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              <span>当前关注: <strong className="text-slate-900">{currentStock.name} ({currentStock.code})</strong></span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>错误</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* 主内容区：K 线与实盘 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              K 线走势
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingRealtime && !klineData.length ? (
-              <div className="h-96 flex items-center justify-center text-slate-400">加载图表中...</div>
-            ) : (
-              <KLineChart data={klineData} symbol={currentStock.code} />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5" />
-              实时盘口
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingRealtime && !realtimeData ? (
-              <div className="h-96 flex items-center justify-center text-slate-400">加载盘口中...</div>
-            ) : realtimeData ? (
-              
-            ) : (
-              <div className="h-96 flex items-center justify-center text-slate-400">暂无数据</div>
-            )}
-          </CardContent>
-        </Card>
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+      {/* 头部 */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">智能诊断分析</h1>
+          <p className="text-gray-500 mt-1">{currentStock.name} ({currentStock.code})</p>
+        </div>
+        <form onSubmit={handleSearch} className="flex gap-2 w-full md:w-auto">
+          <Input 
+            placeholder="输入股票代码" 
+            value={searchCode}
+            onChange={(e) => setSearchCode(e.target.value)}
+            className="w-full md:w-64"
+          />
+          <Button type="submit" disabled={loading}>查询</Button>
+        </form>
       </div>
 
-      {/* 底部：AI 深度分析区 */}
+      {/* 顶部跑马灯 (如果 MarketTicker 存在) */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            AI 深度决策分析
-            {!hasSearched && <Badge variant="secondary" className="ml-2 font-normal">待激活</Badge>}
-            {loadingAi && <Badge variant="outline" className="ml-2 animate-pulse">分析中...</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!hasSearched ? (
-            // 未搜索：显示灰色占位符
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {renderPlaceholderCard("综合评分", <Activity className="w-4 h-4" />)}
-              {renderPlaceholderCard("基本面", <TrendingUp className="w-4 h-4" />)}
-              {renderPlaceholderCard("技术面", <Activity className="w-4 h-4" />)}
-              {renderPlaceholderCard("资金流向", <RefreshCw className="w-4 h-4" />)}
-              {renderPlaceholderCard("市场情绪", <Shield className="w-4 h-4" />)}
-              {renderPlaceholderCard("估值分析", <TrendingUp className="w-4 h-4" />)}
-              {renderPlaceholderCard("波动率", <Activity className="w-4 h-4" />)}
-              {renderPlaceholderCard("目标价", <Shield className="w-4 h-4" />)}
-            </div>
-          ) : loadingAi ? (
-            // 加载中
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <Card key={i} className="h-32 animate-pulse bg-slate-50">
-                  <CardContent className="p-4 flex flex-col justify-center h-full">
-                    <div className="h-4 bg-slate-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-8 bg-slate-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-slate-200 rounded w-full"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : aiData ? (
-            // 有数据
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {renderAiCard(
-                "综合评分", 
-                aiData.ai_8_dimensions?.comprehensive || "N/A", 
-                aiData.message, 
-                <Activity className="w-4 h-4" />,
-                "text-blue-600"
-              )}
-              {renderAiCard(
-                "基本面", 
-                aiData.ai_8_dimensions?.fundamental || "N/A", 
-                aiData.ai_8_dimensions?.fundamental_desc || "", 
-                <TrendingUp className="w-4 h-4" />,
-                "text-green-600"
-              )}
-              {renderAiCard(
-                "技术面", 
-                aiData.ai_8_dimensions?.technical || "N/A", 
-                aiData.ai_8_dimensions?.technical_desc || "", 
-                <Activity className="w-4 h-4" />,
-                "text-purple-600"
-              )}
-              {renderAiCard(
-                "资金流向", 
-                aiData.ai_8_dimensions?.liquidity || "N/A", 
-                aiData.ai_8_dimensions?.liquidity_desc || "", 
-                <RefreshCw className="w-4 h-4" />,
-                "text-red-600"
-              )}
-              {renderAiCard(
-                "市场情绪", 
-                aiData.ai_8_dimensions?.sentiment || "N/A", 
-                aiData.ai_8_dimensions?.sentiment_desc || "", 
-                <Shield className="w-4 h-4" />,
-                "text-orange-600"
-              )}
-              {renderAiCard(
-                "估值分析", 
-                aiData.ai_8_dimensions?.valuation || "N/A", 
-                aiData.ai_8_dimensions?.valuation_desc || "", 
-                <TrendingUp className="w-4 h-4" />,
-                "text-indigo-600"
-              )}
-              {renderAiCard(
-                "波动率", 
-                aiData.ai_8_dimensions?.volatility || "N/A", 
-                aiData.ai_8_dimensions?.volatility_desc || "", 
-                <Activity className="w-4 h-4" />,
-                "text-pink-600"
-              )}
-              {renderAiCard(
-                "目标价", 
-                aiData.target_price?.medium_term || "N/A", 
-                `短期: ${aiData.target_price?.short_term || '-'} | 中期: ${aiData.target_price?.medium_term || '-'}`, 
-                <Shield className="w-4 h-4" />,
-                "text-slate-700"
-              )}
-            </div>
-          ) : (
-            // 搜索了但没数据
-            <div className="text-center py-10 text-slate-500">
-              暂无 AI 分析数据，请尝试其他股票
-            </div>
-          )}
+        <CardContent className="p-4">
+           <MarketTicker symbol={currentStock.code} />
         </CardContent>
       </Card>
-      
-      <StockNews symbol={currentStock.code} />
+
+      {/* 主要内容区：图表 + 新闻 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* 左侧：K 线图 (占 2 列) */}
+        <div className="lg:col-span-2">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>K 线走势</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[500px]">
+              {loading ? (
+                <div className="flex items-center justify-center h-full">加载中...</div>
+              ) : (
+                <KLineChart data={klineData} symbol={currentStock.code} height={450} />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 右侧：新闻列表 (占 1 列) */}
+        <div className="lg:col-span-1">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>相关资讯</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StockNews symbol={currentStock.code} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* ⚠️ 已删除 OrderBook 组件区域 */}
+      {/* 原本这里可能有 <OrderBook data={realtimeData} />，现已移除 */}
+
+      <Alert>
+        <AlertTitle>风险提示</AlertTitle>
+        <AlertDescription>
+          市场有风险，投资需谨慎。本页面数据仅供参考。
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };
