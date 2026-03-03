@@ -85,46 +85,58 @@ const KLineChart = ({ symbol, height = 400, period = '日线' }) => {
       chartInstance.current = echarts.init(chartRef.current);
     }
     
-    chartInstance.current.setOption({
-      tooltip: { 
-        trigger: 'axis', 
-        axisPointer: { type: 'cross' },
-        formatter: function (params) {
-          // 自定义提示框，显示更友好
-          const p = params[0];
-          return `日期：${p.name}<br/>开盘：${p.data[0]}<br/>收盘：${p.data[1]}<br/>最低：${p.data[2]}<br/>最高：${p.data[3]}`;
-        }
-      },
-      grid: { left: '10%', right: '5%', bottom: '15%', top: '10%' },
-      xAxis: { 
-        type: 'category', 
-        data: dates, 
-        scale: true, 
-        boundaryGap: false,
-        axisLine: { onZero: false }
-      },
-      yAxis: { 
-        scale: true, 
-        splitArea: { show: true },
-        position: 'right' // Y 轴放右边，符合国内习惯
-      },
-      dataZoom: [
-        { type: 'inside', start: 50, end: 100 }, 
-        { type: 'slider', start: 50, end: 100 }
-      ],
-      series: [{ 
-        type: 'candlestick', 
-        data: data, 
-        itemStyle: { 
-          color: '#ef5350', // 阳线红色
-          color0: '#26a69a', // 阴线绿色
-          borderColor: '#ef5350',
-          borderColor0: '#26a69a'
-        }
-      }]
-    });
-  };
-
+   chartInstance.current.setOption({
+  tooltip: { 
+    trigger: 'axis', 
+    axisPointer: { type: 'cross' },
+    formatter: function (params) {
+      const p = params[0];
+      return `日期：${p.name}<br/>开盘：${p.data[0]}<br/>收盘：${p.data[1]}<br/>最低：${p.data[2]}<br/>最高：${p.data[3]}`;
+    }
+  },
+  grid: { 
+    left: '10%', 
+    right: '5%', 
+    bottom: '15%', 
+    top: '10%',
+    containLabel: true 
+  },
+  xAxis: { 
+    type: 'category', 
+    data: dates, 
+    scale: true, 
+    boundaryGap: false,
+    axisLine: { onZero: false },
+    splitLine: { show: true, lineStyle: { color: '#eee' } }
+  },
+  yAxis: { 
+    scale: true, 
+    splitArea: { show: false },
+    position: 'right',
+    axisLabel: {
+      formatter: '{value}',
+      fontSize: 10,
+      color: '#666'
+    },
+    splitLine: { show: true, lineStyle: { color: '#eee', type: 'dashed' } }
+  },
+  dataZoom: [
+    { type: 'inside', start: 50, end: 100, minValueSpan: 10 }, 
+    { type: 'slider', start: 50, end: 100, bottom: 10, height: 20 }
+  ],
+  series: [{ 
+    type: 'candlestick', 
+    data: data, 
+    barWidth: '60%', // 固定蜡烛宽度
+    itemStyle: { 
+      color: '#ef5350', // 阳线红色
+      color0: '#26a69a', // 阴线绿色
+      borderColor: '#ef5350',
+      borderColor0: '#26a69a',
+      borderWidth: 1
+    }
+  }]
+});
   useEffect(() => { 
     fetchData(); 
   }, [fetchData]);
