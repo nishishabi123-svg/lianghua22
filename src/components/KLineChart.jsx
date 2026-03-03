@@ -176,6 +176,6 @@ const KLineChart = ({ symbol, height = 400, period = '日线' }) => {
       </Spin>
     </div>
   );
-};
+
 
 export default KLineChart;
