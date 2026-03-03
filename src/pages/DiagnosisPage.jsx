@@ -156,7 +156,7 @@ const DiagnosisPage = () => {
   // --- 渲染辅助组件 ---
 
   // 渲染 AI 卡片的占位符 (未搜索时显示)
-  const renderPlaceholderCard = (title, icon: React.ReactNode) => (
+  const renderPlaceholderCard = (title, icon) => (
     <Card className="h-full bg-slate-50 border-dashed border-slate-200">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
@@ -173,7 +173,7 @@ const DiagnosisPage = () => {
   );
 
   // 渲染真实的 AI 卡片内容
-  const renderAiCard = (title, value, detail, icon: React.ReactNode, colorClass = "text-blue-600") => (
+  const renderAiCard = (title, value, detail, icon, colorClass = "text-blue-600") => (
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-slate-500 flex items-center gap-2">
