@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import KLineChart from '../components/KLineChart';
-import OrderBook from '../components/OrderBook';
 import MarketTicker from '../components/MarketTicker';
 import StockNews from '../components/StockNews';
 import { fetchStockRealtime, fetchAIDiagnosis, searchStockSuggestion } from '../services/api';
@@ -269,7 +268,7 @@ const DiagnosisPage = () => {
             {loadingRealtime && !realtimeData ? (
               <div className="h-96 flex items-center justify-center text-slate-400">加载盘口中...</div>
             ) : realtimeData ? (
-              <OrderBook data={realtimeData} />
+              
             ) : (
               <div className="h-96 flex items-center justify-center text-slate-400">暂无数据</div>
             )}
