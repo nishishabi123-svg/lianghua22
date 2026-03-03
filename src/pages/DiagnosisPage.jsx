@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import KLineChart from './KLineChart';
-import OrderBook from './OrderBook';
-import MarketTicker from './MarketTicker';
-import StockNews from './StockNews';
+import KLineChart from '../components/KLineChart';
+import OrderBook from '../components/OrderBook';
+import MarketTicker from '../components/MarketTicker';
+import StockNews from '../components/StockNews';
 import { fetchStockRealtime, fetchAIDiagnosis, searchStockSuggestion } from '../services/api';
 
 // 默认显示的股票
