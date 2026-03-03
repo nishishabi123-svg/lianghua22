@@ -36,9 +36,7 @@ const DiagnosisPage = () => {
   const [loadingAi, setLoadingAi] = useState(false);
   const [error, setError] = useState(null);
 
-  // 【关键修改】新增状态：标记用户是否主动执行过搜索
-  // false = 初始状态，不加载 AI，显示占位符
-  // true = 用户已搜索，加载 AI 数据
+  // 【关键】标记用户是否主动执行过搜索
   const [hasSearched, setHasSearched] = useState(false);
 
   const suggestionTimer = useRef(null);
@@ -53,8 +51,6 @@ const DiagnosisPage = () => {
       const data = await fetchStockRealtime(code);
       if (data && data.status === 'success') {
         setRealtimeData(data);
-        // 假设 API 返回中包含 kline_data，如果没有可能需要单独调用
-        // 这里根据你的 main.py 逻辑，stock_realtime 似乎同时返回了 price 和 kline_data
         if (data.kline_data) {
           setKlineData(data.kline_data);
         }
@@ -77,7 +73,7 @@ const DiagnosisPage = () => {
       if (data && data.status === 'success') {
         setAiData(data);
       } else {
-        setAiData(null); // 清除旧数据以防误导
+        setAiData(null);
         setError('AI 分析服务暂时不可用');
       }
     } catch (err) {
@@ -91,15 +87,15 @@ const DiagnosisPage = () => {
 
   // --- 副作用 (Effects) ---
 
-  // 初始化：仅加载默认股票的行情和 K 线，**不**加载 AI
+  // 【关键修改】初始化：仅加载默认股票的行情和 K 线，**绝对不**加载 AI
   useEffect(() => {
+    console.log('🚀 页面初始化，仅加载行情数据...');
     loadRealtimeData(DEFAULT_STOCK.code);
     
-    // 清理建议框
     return () => {
       if (suggestionTimer.current) clearTimeout(suggestionTimer.current);
     };
-  }, []);
+  }, []); // 空依赖数组，只运行一次
 
   // 处理搜索建议
   const handleSearchChange = async (e) => {
@@ -124,7 +120,7 @@ const DiagnosisPage = () => {
     }
   };
 
-  // 处理搜索提交 (核心逻辑修改处)
+  // 处理搜索提交
   const handleSearch = (code, name, market) => {
     const finalCode = code || searchInput;
     const finalName = name || searchInput;
@@ -132,19 +128,17 @@ const DiagnosisPage = () => {
 
     if (!finalCode) return;
 
-    // 1. 更新当前股票状态
     const newStock = { code: finalCode, name: finalName, market: finalMarket };
     setCurrentStock(newStock);
     
-    // 2. 关闭建议框
     setShowSuggestions(false);
     setSearchInput('');
     setSuggestions([]);
 
-    // 3. 立即刷新 K 线和实盘数据
+    // 刷新 K 线和实盘
     loadRealtimeData(finalCode);
 
-    // 4. 【关键修改】标记已搜索，并触发 AI 分析
+    // 【关键】标记已搜索，并触发 AI 分析
     setHasSearched(true);
     loadAiDiagnosis(finalCode);
   };
@@ -155,7 +149,6 @@ const DiagnosisPage = () => {
 
   // --- 渲染辅助组件 ---
 
-  // 渲染 AI 卡片的占位符 (未搜索时显示)
   const renderPlaceholderCard = (title, icon) => (
     <Card className="h-full bg-slate-50 border-dashed border-slate-200">
       <CardHeader className="pb-2">
@@ -172,7 +165,6 @@ const DiagnosisPage = () => {
     </Card>
   );
 
-  // 渲染真实的 AI 卡片内容
   const renderAiCard = (title, value, detail, icon, colorClass = "text-blue-600") => (
     <Card className="h-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
@@ -216,7 +208,6 @@ const DiagnosisPage = () => {
                 </Button>
               </div>
               
-              {/* 搜索建议下拉框 */}
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-60 overflow-auto">
                   {suggestions.map((stock) => (
@@ -241,7 +232,6 @@ const DiagnosisPage = () => {
         </CardContent>
       </Card>
 
-      {/* 错误提示 */}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -252,7 +242,6 @@ const DiagnosisPage = () => {
 
       {/* 主内容区：K 线与实盘 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 左侧：K 线图 (占 2/3) */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -269,7 +258,6 @@ const DiagnosisPage = () => {
           </CardContent>
         </Card>
 
-        {/* 右侧：五档实盘 (占 1/3) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -289,7 +277,7 @@ const DiagnosisPage = () => {
         </Card>
       </div>
 
-      {/* 底部：AI 深度分析区 (8 个小卡片) */}
+      {/* 底部：AI 深度分析区 */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -301,7 +289,7 @@ const DiagnosisPage = () => {
         </CardHeader>
         <CardContent>
           {!hasSearched ? (
-            // 【状态 A】未搜索：显示灰色占位符
+            // 未搜索：显示灰色占位符
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {renderPlaceholderCard("综合评分", <Activity className="w-4 h-4" />)}
               {renderPlaceholderCard("基本面", <TrendingUp className="w-4 h-4" />)}
@@ -313,7 +301,7 @@ const DiagnosisPage = () => {
               {renderPlaceholderCard("目标价", <Shield className="w-4 h-4" />)}
             </div>
           ) : loadingAi ? (
-            // 【状态 B】加载中
+            // 加载中
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(8)].map((_, i) => (
                 <Card key={i} className="h-32 animate-pulse bg-slate-50">
@@ -326,7 +314,7 @@ const DiagnosisPage = () => {
               ))}
             </div>
           ) : aiData ? (
-            // 【状态 C】有数据：显示真实分析结果
+            // 有数据
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {renderAiCard(
                 "综合评分", 
@@ -386,7 +374,7 @@ const DiagnosisPage = () => {
               )}
             </div>
           ) : (
-            // 【状态 D】搜索了但没数据
+            // 搜索了但没数据
             <div className="text-center py-10 text-slate-500">
               暂无 AI 分析数据，请尝试其他股票
             </div>
@@ -394,7 +382,6 @@ const DiagnosisPage = () => {
         </CardContent>
       </Card>
       
-      {/* 新闻模块 (可选，保持原有逻辑) */}
       <StockNews symbol={currentStock.code} />
     </div>
   );
